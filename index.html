@@ -5,18 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Belajar Kanji & Dokkai</title>
     <style>
+        :root {
+            --bg-color: #f9f9f9;
+            --text-color: #333;
+            --container-bg: #fff;
+            --kanji-bg: #d3d3d3;
+            --modal-overlay: rgba(0,0,0,0.6);
+            --stroke-color: #007BFF;
+        }
+
+        /* Dukungan Tema Gelap (Dark Mode) */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212;
+                --text-color: #e0e0e0;
+                --container-bg: #1e1e1e;
+                --kanji-bg: #444;
+                --modal-overlay: rgba(0,0,0,0.8);
+            }
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
-            background-color: #f9f9f9;
-            color: #333;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             line-height: 2;
             font-size: 18px;
         }
         .container {
             max-width: 600px;
             margin: 0 auto;
-            background: #fff;
+            background: var(--container-bg);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -26,7 +46,7 @@
             word-wrap: break-word;
         }
         .kanji-block {
-            background-color: #d3d3d3;
+            background-color: var(--kanji-bg);
             cursor: pointer;
             padding: 2px 6px;
             border-radius: 4px;
@@ -34,7 +54,9 @@
             white-space: nowrap;
         }
         .kanji-block.clicked {
-            background-color: #ffd700;
+            background-color: #ffd700 !important;
+            color: #000000 !important; 
+            font-weight: bold;
         }
         .btn {
             display: block;
@@ -50,17 +72,16 @@
         .btn-next { background-color: #007BFF; color: white; }
         .btn-next:hover { background-color: #0056b3; }
         
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: var(--modal-overlay);
             z-index: 1000;
         }
         .modal-content {
-            background: #fff;
+            background: var(--container-bg);
             margin: 10% auto;
             padding: 20px;
             width: 90%;
@@ -68,14 +89,14 @@
             border-radius: 8px;
             text-align: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            color: var(--text-color);
         }
-        .modal h1 { margin: 10px 0; font-size: 48px; }
-        .modal h3 { margin: 0; color: #555; font-weight: normal; }
-        .modal p { margin-top: 10px; font-size: 18px; font-weight: bold; }
         
-        .canvas-area {
-            margin: 20px 0;
-        }
+        #kanji-modal h1 { margin: 10px 0; font-size: 48px; }
+        #kanji-modal h3 { margin: 0; color: #888; font-weight: normal; }
+        #kanji-modal p { margin-top: 10px; font-size: 18px; font-weight: bold; }
+        
+        .canvas-area { margin: 20px 0; }
         canvas {
             border: 2px dashed #ccc;
             background-color: #fafafa;
@@ -87,15 +108,55 @@
         }
         .btn-clear { background-color: #dc3545; color: white; margin-bottom: 10px; padding: 10px; }
         .btn-close { background-color: #28a745; color: white; padding: 10px; }
+
+        .flashcard-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 250px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .flashcard {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            position: relative;
+        }
+        .flashcard.is-flipped { transform: rotateY(180deg); }
+        .flashcard-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 2px solid #ddd;
+        }
+        .flashcard-front {
+            background-color: var(--container-bg);
+            color: var(--text-color);
+        }
+        .flashcard-back {
+            background-color: #f0f8ff;
+            color: #000;
+            transform: rotateY(180deg);
+        }
+        .fc-btn-group { display: flex; gap: 10px; flex-direction: column; }
+        .btn-fc-next { background-color: #ff9800; color: white; padding: 12px;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="progress" style="font-weight: bold; margin-bottom: 10px; color: #666;">Teks: 1 / ?</div>
+    <div id="progress" style="font-weight: bold; margin-bottom: 10px; color: #888;">Teks: 1 / ?</div>
     <div id="text-container" class="text-content">
         </div>
-    <button id="next-btn" class="btn btn-next">Selanjutnya (Teks Acak)</button>
+    <button id="next-btn" class="btn btn-next">Selanjutnya</button>
 </div>
 
 <div id="kanji-modal" class="modal">
@@ -105,7 +166,7 @@
         <p id="modal-arti">Arti</p>
 
         <div class="canvas-area">
-            <span style="display:block; margin-bottom: 5px; font-size:14px; color:#666;">Gunakan area ini untuk menggambar kanji 5x:</span>
+            <span style="display:block; margin-bottom: 5px; font-size:14px; color:#888;">Gunakan area ini untuk menggambar kanji 5x:</span>
             <canvas id="draw-canvas"></canvas>
         </div>
 
@@ -114,1056 +175,66 @@
     </div>
 </div>
 
+<div id="flashcard-modal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Review Kanji Teks Ini</h3>
+        <p style="font-size:14px; color:#888;">Ketuk kartu untuk membalik</p>
+        
+        <div class="flashcard-container" id="fc-container">
+            <div class="flashcard" id="fc-card">
+                <div class="flashcard-face flashcard-front">
+                    <h1 id="fc-kanji" style="font-size: 70px; margin: 0;">漢字</h1>
+                </div>
+                <div class="flashcard-face flashcard-back">
+                    <h2 id="fc-furigana" style="margin: 0 0 10px 0; color: #333;">ふりがな</h2>
+                    <p id="fc-arti" style="font-size: 22px; margin: 0; font-weight: bold; color: #555;">Arti</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fc-btn-group">
+            <button id="fc-next-btn" class="btn btn-fc-next">Kartu Acak Selanjutnya</button>
+            <button id="fc-finish-btn" class="btn btn-next">Lanjut ke Teks Berikutnya</button>
+        </div>
+    </div>
+</div>
+
+<script src="data-texts.js"></script>
+<script src="data-vocab.js"></script>
+
 <script>
-    // Database Teks Lengkap (Dokkai Nyuumon)
-    const texts = [
-        // [cite: 2, 3, 4, 5]
-        `【1. あいさつのジェスチャー】<br>日本では、あいさつをするとき、腰を曲げ、頭を前に下げます。これを「おじぎ」といいます。おじぎは、あいさつのときやお礼のときなどに使われるジェスチャーです。腰を曲げる角度が大きいほど、敬意が高いとみなされます。道で知り合いに会ったときなどは、首を曲げて頭を少し下げるだけでかまいません。<br><br>人に会ったとき、日本ではハグをしたりビズ(頬と頬をつける)をしたりすることは、ほとんどありません。握手は、ビジネスの世界ではときどき使われることもありますが、あまり一般的ではありません。<br><br>両手を胸の前で合わせるジェスチャーは、日本ではご飯を食べる前には使われますが、人と会ったときのあいさつには普通は使われません。しかし、このジェスチャーが日本のあいさつだと誤解されていることも、少なくないようです。`,
+    // Memastikan file eksternal berhasil dimuat
+    if (typeof texts === 'undefined' || typeof vocab === 'undefined') {
+        alert("Gagal memuat data! Pastikan file data-texts.js dan data-vocab.js berada di folder yang sama.");
+    }
 
-        // [cite: 6, 7]
-        `【2. 「さようなら」のあいさつ】<br>日本語の別れのあいさつとして、「さようなら」ということばが知られています。しかし、実際の日常生活で「さようなら」が使われることは、あまりありません。「さようなら」は、学校でのあいさつとして生徒と先生の間で使ったり、もう会うことがない人に別れを告げたりする場面で使ったりすることが多く、日常生活でいつも会う知り合いに別れのあいさつをするときは、教科書本文で練習したように、フォーマルな場面なら「失礼します」、カジュアルな場面なら「じゃあ、また」などの言い方が一般的です。`,
-
-        // [cite: 8, 9, 10, 11, 12]
-        `【3. 「すみません」を使うとき】<br>「すみません」は謝るときに使うことばですが、お礼を言うときは、「ありがとう(ございます)」を使う場合と、「すみません」を使う場合があります。<br><br>本文では、落とし物を拾ってもらったときや、席を譲ってもらったときに、「すみません」とお礼を言う場面が出てきました。このように、ほかの人が自分のために何かしてくれたときで、そのために相手に不利益や負担がかかったと感じる場合、「すみません」ということばで、謝りながらお礼を言います。「すみません」だけでもお礼を表す意味になります。<br><br>相手に不利益や負担がかかっていない場合、例えばほめられたときや、お祝いを言われたときには、お礼のことばとして「すみません」が使われることはありません。<br><br>「すみません」と「ありがとう(ございます)」の使い分けは難しいかもしれませんが、「すみません」を使わないで「ありがとう(ございます)」と言っても、失礼になることはないので、お礼を言うときはいつも「ありがとう(ございます)」とだけ言っても大丈夫です。`,
-
-        // [cite: 13, 14]
-        `【4. 略語 (りゃくご)】<br>「スマホ」は、「スマートホン (smartphone)」が省略されて作られた略語です。日本語では、このような略語がたくさん使われています。略語が作られる場合は、後ろの部分が省略されたり、複合語のそれぞれの部分から2文字または1文字を組み合わせたりして作られます。外来語に多く見られますが、日本語の漢字のことばや、人名なども、このように略語になる場合があります。以下に、いくつかの例を紹介します。`,
-
-        // [cite: 15, 16, 17]
-        `【5. 蚊】<br>夏になると、蚊が発生します。特に夕方、外にいると、蚊が「プーン」と寄ってきて、血を吸います。蚊に刺されると、非常にかゆくなります。ただし、日本の蚊は、マラリアやデング熱のような伝染病を媒介することはめったにありませんので、あまり心配する必要はありません。<br><br>蚊に刺されるのを防ぐ方法は、手や足に虫除けのスプレーをするほか、「蚊取り線香」という、蚊を殺す成分の入った線香をたくこともあります。伝統的な蚊取り線香は、においも強く、灰の始末も大変でしたが、現在では電気式のものや、スプレー式のものも多くなってきました。これらはドラッグストアなどで買うことができます。`,
-
-        // [cite: 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
-        `【6. 日本の文字】<br>日本語は、世界の言語の中でも最も複雑な文字体系を持った言語です。日本語では、漢字、ひらがな、カタカナ、ローマ字(アルファベット)という複数の種類の文字が使われています。<br><br>・漢字<br>漢字は中国を起源とする文字です。日本語は、基本的には漢字とひらがなで書かれますが、漢字はそのうち、意味を担う部分を表すのに使われます。日本語では、1つの漢字に複数の読み方があるのも特徴です。例えば「日曜日」ということばでは、同じ「日」という漢字が、「にち」「び」という違う読み方で読まれています。<br><br>・ひらがな<br>漢字を崩して作った文字で、平安時代 (794-1185)の初期に、日本で作られました。ひらがなは、主に「~は」「~から」などの助詞や、「〜ます」「〜くないです」のような動詞や形容詞の語尾の部分など、文法的な働きをする部分を表します。<br><br>・カタカナ<br>漢字の一部から作った文字で、ひらがなと同じぐらいの時期に、日本で作られました。カタカナは「メール」「プレゼント」「ハンバーガー」など、主に外来語を表すのに使われます。外国の地名や人名は、多くの場合、カタカナで書かれます。カタカナはこのほか、「ガタガタ」「キョロキョロ」などのオノマトペ、「サル」「バラ」「エビ」など動物や植物の名前、「ウケる」「ヤバい」など俗語を表すのにも使われることがあります。<br><br>・ローマ字(アルファベット)<br>日本語では、ラテン文字のアルファベットも使われます。「SNS」「DVD」などの略語や、「JR」「JAL」「NHK」「Windows」「Facebook」などの固有名詞は、日本語の中でもそのままアルファベットで書かれます。「OKです」「Noと言う」のように、英語をそのまま使う場合もあります。また、日本語をアルファベットで表したものを「ローマ字」といいます。日本に来る外国人のために、駅名や地名をローマ字で表すことは、現在では日常的になっています。`,
-
-        // [cite: 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
-        `【7. 名前の呼び方】<br>日本語では、ほかの人の名前を呼ぶとき、名前の後ろに「~さん」をつけるのが普通です。「~さん」は、男性か女性か、年上か年下か、結婚しているかしていないかなどに関係なく、だれにでも使えるので、非常に便利なことばです。<br><br>日本人の名前は、「~さん」の前は苗字を使うのが普通です。下の名前は、家族の間や親しい友人同士で使われ、仕事などのフォーマルな場面では、あまり使われません。ただし、外国人の名前の場合は、苗字か下の名前かにかかわらず、本人が呼んでほしい名前に「~さん」をつけて呼ぶことが多いでしょう。<br><br>「~さん」と同じように名前の後ろにつけて使うことばには、ほかに「〜君」や「〜ちゃん」「~様」などがあります。「~君」は、同年代、または年下の男性を呼ぶときに使う、カジュアルなことばです。「〜ちゃん」は、子どもを呼ぶときに使うほか、友だち同士で非常に親しみを込めて使う場合もあります。「〜様」は「~さん」をより丁寧にした敬称で、話しことばでは、店の人が客の名前を呼ぶときに使われます。`,
-
-        // [cite: 43, 44, 45, 46]
-        `【8. 元号】<br>日本では、西暦も使われますが、役所の公的な文書などでは、元号という、日本独自の年号が使われることもあります。元号は、西暦645年から使われていて、2019年からの元号である「令和」は、248番目の元号になります。現在では、元号は新しい天皇の即位に合わせて新しくなります。元号は年を表すのに使うだけでなく、「昭和を代表する歌」「平成の大不況」のように、その時代を代表することばとして使われ、日本の生活の中に根付いています。<br><br>以下の表は、西暦と元号の対照表です。自分の生まれた年が、日本の元号では何年になるか言えたら、日本人を驚かすことができるでしょう。ちなみに元号では、はじめの年を「元年」と言います。`,
-
-        // [cite: 47, 48, 49, 50]
-        `【9. 日本の主な都市】<br>東京は日本の首都です。東京都区部(23区)の人口は約960万人(2020年現在)で、日本でいちばん人口が多い都市であるのはもちろん、人口密度も日本一です。東京は、日本の政治、経済の中心となっています。<br><br>また日本には、人口が多く、県のレベルの権限が与えられた大都市がいくつかあり、これを「政令指定都市」といいます。2020年現在、日本には政令指定都市が全部で20あります。<br><br>以下の地図は、政令指定都市のうち、人口が100万人以上の都市を表したものです。日本の代表的な都市の位置をだいたい覚えておくと、役に立つかもしれません。`,
-
-        // [cite: 51, 52, 53, 54, 55, 56]
-        `【10. 年齢を聞く】<br>みなさんの国では、ほかの人に年齢を聞くことは、普通でしょうか? あるいは、失礼なことでしょうか? 人に年齢を聞くなんて信じられない、特に女性に年齢を聞いてはいけない、のような文化がある一方で、女性にも男性にも、気軽に年齢を聞くのが一般的な文化もあるでしょう。<br><br>日本では、年齢をたずねることは失礼であると考える人もいる一方で、ごく普通に年齢をたずねる人もいます。年齢を聞くことがタブーだと考えられる文化圏に比べると、日本では年齢を聞かれる機会は多いかもしれません。この理由としては、年齢による「目上」か「目下」かという区別が社会的にも意味を持っていることや、日本語では年上か年下か同年代かによって、ことばを使い分ける場合があることなどが考えられるでしょう。地方や年代などによって違いますが、日本では、ときどき年齢を聞かれることがある、ということは、意識しておくといいかもしれません。<br><br>年齢を聞かれたけれど、本当の年齢を答えたくないときは、「秘密です」とか「ずっと18歳です」などと冗談っぽく言ったり、「何歳に見えますか?」のように逆に質問したりして、ごまかす方法もあります。<br><br>直接的に年齢を聞くのは失礼だと思っているけれど、相手の年齢が知りたいときは、ときどき「干支(12支)」を聞くことがあります。干支は中国から来た概念で、12種類の動物を1年ごとに順番に割り振ったものです。「何どし(生まれ)ですか?」という質問が、干支を聞く質問です。同じ動物の年は12年に1度なので、生まれた干支を聞いて、そこから西暦何年に生まれたか、推測するという方法です。<br><br>以下は、西暦と干支の対照表です。自分の干支を知らない人は、自分が何どし生まれか、覚えておくといいでしょう。`,
-
-        // [cite: 57, 58, 59]
-        `【11. 日本の海】<br>日本は島国で、海に囲まれています。夏になると、友だちや家族と海水浴に出かける人も多くいます。日本では、沖縄をのぞくと、海で泳げるシーズンは、だいたい7月~8月ぐらいです。海水浴場にはコイン式のシャワーやロッカーが設置され、だれでも海水浴を楽しむことができます。「海の家」という、海岸で休憩や食事を提供する施設もオープンするので、そのような施設を使うこともできます。<br><br>沖縄は、日本のいちばん南にある県で、一年中暖かく、だいたい5月ごろから10月ごろまで海で泳ぐことができます。青い海と白い珊瑚の砂浜が美しく、マリンスポーツもできるので、ビーチリゾートとして人気があります。また、「海の幸」も日本の旅行の楽しみの1つです。海の近くには、漁港や魚市場があり、新鮮な魚介類を食べることができます。海に近い町に行ったときには、ぜひ、その土地でとれた海の幸を食べてみてください。`,
-
-        // [cite: 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85]
-        `【12. 日本の食べ物(刺身と寿司/天ぷら/うどんとそば/カレー)】<br>・刺身と寿司<br>刺身は、新鮮な生の魚を薄く切って、しょうゆなどをつけてそのまま食べる料理で、代表的な日本料理の1つです。魚の切り身をただ並べるだけではなく、見た目が美しく見えるように、きれいに盛り付けるのも特徴です。刺身の下には細く切った大根や海藻、シソなどが置かれ、これらを「刺身のつま」といいます。刺身のつまは食べることもできますし、食べないで残してもいいです。<br><br>寿司は、刺身を酢飯といっしょに食べる料理で、現在では世界中に広まっています。「にぎり寿司」「巻き寿司」「ちらし寿司」「押し寿司」など、いくつか種類があります。本格的な寿司屋に行くと非常に高い料金になることもありますが、値段を抑えた店も多くあります。「回転寿司」という、寿司がベルトコンベアで運ばれてくるシステムの店は、比較的安い値段で寿司が食べられます。また、テイクアウトの寿司チェーン店や、スーパー、コンビニなどでも、気軽に買うことができます。<br><br>・天ぷら<br>天ぷらは、エビや魚などの魚介類や、カボチャ、ナスなどの野菜に、小麦粉などから作った衣をつけ、油で揚げた料理です。伝統的な日本料理ですが、「天ぷら」の語源はポルトガル語の「tempero (調味料)」に由来すると言われています。天ぷらは、つゆにつけて、または塩をかけて食べます。ご飯の上にのせたり、そばやうどんの上にのせたりする食べ方もあります。<br><br>・うどんとそば<br>和食の麺類の代表的なものが、うどんとそばです。うどんは、小麦粉から作った白くて太い麺をゆでて作ります。そばは、そば粉から麺を作ります。うどんもそばも、温かいつゆに入れて食べる食べ方と、ゆでたあと水で冷やした麺を皿に盛り、濃い目のつゆにつけて食べる食べ方があります。<br><br>うどん、そばは、一方だけを扱う専門的な店もありますが、多くのそば屋では、うどんとそばの両方がメニューにあり、選ぶことができます。電車の駅にはたいてい、うどんとそばの店があり、安く、しかも短い時間で提供されるので、急いでいるときなどに便利です。<br><br>日本でうどんやそばなどの麺類は、「ズルズルッ」と音を立てて食べます。これはこのほうが香りを楽しめるという理由や、「おいしい」とことばで言う代わりに音で伝えるという意味があります。自分でも音を立ててうどんやそばが食べられるよう、練習してみるといいでしょう。<br><br>うどん、そばのメニューには、以下のようなものがあります。<br>・かけうどん/かけそば: 具が入っていない、温かいつゆに入ったうどん・そば。<br>・ざるうどん/ざるそば: ざるは竹で編んで作った器。水で冷やし、冷たくした麺をざるに盛り、つゆをつけて食べる。<br>・きつねうどん/きつねそば: きつねは“fox”の意味。油揚げをのせたもの。関西では、うどんは「きつね」、そばは「たぬき」と言う。<br>・月見うどん/月見そば: 月見は“moonviewing”の意味。生卵をのせたもの。<br>・天ぷらうどん/天ぷらそば: エビなどの天ぷらをのせたもの。<br><br>・カレー<br>カレーは、インドの料理が、イギリスを経由して明治時代 (1868-1912)に日本に入り、そのあと日本でオリジナルのスタイルになった料理です。日本のカレーは、インドやタイのカレーとは違い、小麦粉を使い、とろみがついているのが特徴です。ご飯にかけて、「カレーライス」として食べます。<br><br>日本人は平均して週に1度以上カレーを食べると言われています。定食屋、そば屋、牛丼屋など、たいていの飲食店ではカレーを食べることができます。日本でビュッフェスタイルの食事をすると、たいていメニューにカレーがあります。このように、カレーは日本では非常に人気があり、日本の「国民食」とも言われています。市販のカレールーを使うと簡単に作ることができるので、自分で作ってみるのもいいでしょう。また、袋のままお湯に入れればできあがるレトルト食品もたくさん売られていますので、買っておくと、手をかけずに食事を作りたいときなどに便利です。`,
-
-        // [cite: 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97]
-        `【13. 丼物】<br>丼にご飯を入れ、その上に具材をのせた料理を丼物といいます。丼物は、「牛丼」「カツ丼」のように、うしろに「~丼」がついた品名で呼ばれます。本文に登場した牛丼以外にも、上に何をのせるかによって、さまざまな種類の「~丼」があります。<br><br>・牛丼<br>薄く切った牛肉とたまねぎを炒め、甘辛いつゆで味をつけ、ご飯にのせた丼です。紅ショウガをのせることもあります。日本には「吉野家」「松屋」「すき家」など、牛丼のチェーン店がいくつかあり、安い値段で牛丼を食べることができるので、気軽な食事として人気があります。<br><br>・カツ丼<br>豚カツをタマネギといっしょにつゆで煮込み、卵でとじたものをご飯にのせます。豚カツの店のほか、定食屋やそば屋などでもメニューにあります。<br><br>・親子丼<br>これも、定食屋やそば屋で一般的なメニューです。焼き鳥の店で出されることもあります。鶏肉をネギ、またはタマネギといっしょにつゆで煮込み、卵でとじたものをご飯にのせた丼です。鶏肉と卵を使うことから、「親子」という名前がついています。鶏肉の代わりに豚肉や牛肉を使った「他人丼」をメニューに載せている店もあります。<br><br>・海鮮丼<br>いろいろな刺身をご飯の上にのせて作る丼です。刺身の種類によって、「まぐろ丼」「鮭イクラ丼」等の名前がつくこともあります。<br><br>・鰻丼<br>鰻の蒲焼きをご飯にのせて食べます。高級なものは、丼の代わりに重箱を使い、「鰻重」という名前になります。鰻の大きさなどによって「松」「竹」「梅」というランクがつけられていることもあります。この場合、一般的には松>竹>梅の順位で、松がいちばんランクが高いのが普通です(ただし、店によって異なる場合もあります)。鰻は専門店で食べるとかなり高い料理ですが、牛丼のチェーン店などで比較的安く食べることもできます。<br><br>日本では夏の「土用の丑の日」に鰻を食べる習慣があり、この日にはたくさんの人が鰻丼や鰻重を食べます。`,
-
-        // [cite: 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112]
-        `【14. 外国人の苦手な日本の食べ物】<br>みなさんの国の食べ物の中には、外国人から苦手だと言われる食べ物がありますか? 本文に登場した「納豆」と「梅干し」、居酒屋メニューにあった「塩辛」は、外国人から「食べられない」「苦手」という声がよく聞かれる日本の食べ物です。もちろん好みは人それぞれですし、食べられるものも食べられないものも人によってさまざまです。機会があれば、試してみてください。<br><br>・納豆<br>納豆は大豆を発酵させて作った食品で、独特のにおいと、糸を引く粘りがあります。日本の朝食のメニューとして一般的な食品ですが、日本人でも、納豆が苦手な人は多いです。特に、関西の人は、関東の人と比べると、あまり納豆を食べません。「外国人が苦手な日本の食べ物」の典型として考えられているので、外国人が「納豆が好き」というと、感心したり驚いたりする日本人もいるでしょう。<br><br>・梅干し<br>梅干しは梅の実を塩漬けにして作った食品で、非常に酸っぱいのが特徴です。おにぎり、お弁当、お茶漬けなどに使われ、健康食品としても人気がありますが、その酸っぱさのため、苦手という人もいます。<br><br>・塩辛<br>塩辛は、イカなど魚介類の身を内臓と合わせて刻み、塩漬けにして発酵させて作ります。ご飯にのせて食べたり、お酒のつまみとして食べたりします。塩辛が嫌いな外国人からは、「味がしょっぱすぎる」「見た目が気持ち悪い」「内臓というだけで無理」などの感想が聞かれます。<br><br>・日本酒<br>日本酒は米から作られます。日本各地に酒蔵があり、日本全国でさまざまな銘柄の日本酒が造られています。アルコールの度数はだいたい14~16%ぐらいです。日本語で「お酒」というときは、この日本酒のことを指す場合と、アルコール飲料全体を指す場合があります。<br><br>人工的なアルコールを使わないで、米と米麹と水だけから作った日本酒を「純米酒」といいます。また原料の米を削り、米の芯の部分を使って作った日本酒を「吟醸酒」といいます。純米酒は、まろやかな味わい、吟醸酒はフルーティーな香りが特徴です。<br><br>日本酒の味は「甘口」か「辛口」かに分けられます。米の成分が多く残った日本酒が「甘口」、アルコールの比率が高くさらっとした日本酒が「辛口」です。また飲み方は、冷やして飲むのが「冷酒」、温めて飲むのが「熱燗」です。<br><br>日本酒はコンビニでも売られていますし、居酒屋でも飲むことができます。最近は、日本全国の日本酒を集めた「日本酒バー」も各地にできています。`,
-
-        // [cite: 113, 114, 115, 116]
-        `【15. 日本の朝食】<br>典型的な日本の朝食は、ご飯と味噌汁、焼き魚、卵、のり、納豆、漬け物などです。しかし、今ではこのような朝食を毎日食べる人は、少なくなりました。逆に、パンと卵などの西洋風の朝食を食べる人が増えています。朝食を簡単に済ませる人も多く、シリアル、ヨーグルトなどで済ます人や、コンビニでサンドイッチを買って朝食にする人などもいます。朝食を食べない人もいます。<br><br>味噌汁は、だしをとり、味噌を溶かしたスープです。豆腐、わかめ、大根などの具を入れます。飲むときはスプーンを使わないで、お椀を手に持って、口の近くに持っていって飲みます。味噌が沈んでいる場合は、箸で軽くかき混ぜてから飲みます。<br><br>朝食には、生卵を食べることもよくあります。世界で、卵を生のまま食べる国は、あまり多くないようです。外国の人にとっては、「食べたら病気になりそう」というイメージが先行する場合もあります。しかし、日本の卵は生で食べることを前提として洗浄、殺菌が行われているので、古い卵でなければ生で食べても安全です。生卵は、しょうゆ(または出し汁)と混ぜ、ご飯にかけた「卵かけご飯」にして食べることが多いです。「卵かけご飯」は、朝食だけではなく、お酒を飲んだあとに食べることもあります。居酒屋のメニューなどでは「TKG」と書かれることもあります。`,
-
-        // [cite: 117, 118, 119]
-        `【16. 日本のハンバーガー店】<br>日本でも、ハンバーガーはポピュラーな食べ物です。マクドナルドやバーガーキングなど、外国からのチェーン店だけでなく、モスバーガーやフレッシュネスバーガーのような、日本独自のチェーン店もあります。<br><br>日本のハンバーガー店では、チーズバーガーやフィッシュバーガーなどの定番メニューに加えて、「てりやきバーガー」「月見バーガー」「チキンタツタ」「ライスバーガー」など日本独自のメニューを提供しています。沖縄のハンバーガー店では、「ゴーヤーバーガー」のような地域独自のメニューもあります。日本のハンバーガー店で、日本独自の味を見つけてみるのもおもしろいでしょう。`,
-
-        // [cite: 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
-        `【17. 食券】<br>本文には、食券の券売機の前でメニューを選ぶ会話がありました。日本の社員食堂や飲食店には、食券のシステムを採用しているところが多くあります。食券は、はじめに注文したい食べ物のチケットを自動券売機で買うシステムです。食券の利用手順は、以下のようになります。<br><br>1. 店の外、または、店に入ってすぐのところにある、食券の自動券売機に行きます。<br>2. 券売機にお金を入れて、ほしいメニューのボタンを押します。出てきた食券を取ります。<br>3. 「おつり」ボタンを押すと(レバー式の場合もあります)、おつりが返ってきます。<br><br>食券を買ったあとは、2つの方法があります。店によって違います。<br>4. カウンターに食券を出します。<br>5. カウンターで商品を受け取ってから、席に座って食べます。<br><br>または、<br>4. 席に座ります。店員が来るので、店員に食券を渡します。<br>5. 店員が商品を運んでくるので、受け取って食べます。<br><br>券売機によっては1万円札や5千円札が使えないこともあり、そのときは店の人に言って、お札をくずしてもらいます。最近では電子決済が利用できる自動券売機も増えています。`,
-
-        // [cite: 132, 133, 134, 135, 136, 137, 138, 139]
-        `【18. 居酒屋】<br>居酒屋は、もともとはお酒を飲むための店です。しかし、メニューが豊富で、肉、魚、野菜などの料理がいろいろあって自由にメニューが選べ、値段もあまり高くないので、食事にも気軽に利用することができます。最近では、家族で利用する人も増えています。<br><br>居酒屋は、だいたい次のような手順で利用します。最近では、タッチスクリーンを使って注文するチェーン店もあります。<br>1. 入り口で人数を言います。店員が席を案内してくれるので、そこに座ります。<br>2. 店員がおしぼりとお通しを持ってきますので、はじめに飲み物を注文します。お酒が飲めない人は、ソフトドリンクを注文します。居酒屋では、必ず1人1杯は何か飲み物を注文します。飲み物を頼むとき、枝豆など、簡単な「おつまみ」をいっしょに頼むこともあります。<br>3. 飲み物を待っている間に、メニューを見て、料理を決めます。店員が飲み物を持ってきたときに、料理を注文します。<br>4. 追加で頼みたいものがあったら、そのつど店員を呼んで、注文します。<br>5. 食事が終わったら、店員に言って、会計してほしいことを伝えます。伝票を渡されますので、レジに持って行きます。レジで支払いをして、店を出ます。`,
-
-        // [cite: 140, 141]
-        `【19. 唐揚げ】<br>唐揚げは、食材に小麦粉や片栗粉などを薄くつけて、油で揚げた料理です。一般的には鶏肉の唐揚げを指します。それ以外の食材のときには「タコの唐揚げ」のように食材名を入れます。日本の鶏の唐揚げは、モモ肉を使い、骨はついていないのが普通です。しょうゆとニンニク、ショウガなどで味付けをしてありますが、食べるときにレモン汁をかけたり、マヨネーズをつけたりすることもあります。`,
-
-        // [cite: 142, 143]
-        `【20. おつまみ】<br>お酒を飲むときにいっしょに少しずつ食べる料理を、「(お)つまみ」といいます。枝豆は、おつまみの代表的なメニューとして人気があります。そのほか、おつまみには、「塩辛」「冷奴」「冷やしトマト」「漬け物/お新香」「たこわさび」「エイひれ」「コーンバター」「フライドポテト」などがあります。`,
-
-        // [cite: 144, 145, 146, 147]
-        `【21. ビール】<br>日本人に最も人気があるお酒は、ビールです。日本には、キリン、アサヒ、サントリー、サッポロなどの大手のビールメーカーがあり、さまざまな種類のビールを造っています。居酒屋に入ると、まずはじめにビールを注文する人が多いです。ほかのお酒を飲むときも、はじめの1杯はビールという人もいます。また宴会のときなどは、最初の乾杯は全員ビールでする場合もあります。このように、ビールは日本では、飲み始めのお酒としての役割もあります。<br><br>飲食店で飲むビールは、大きく「瓶ビール」と「生ビール」に分けられます。瓶ビールは、瓶に入ったビールで、コップに注いで飲みます。何人かでシェアするときなどに便利です。生ビールは、ビールサーバーからジョッキに注ぎます。ジョッキの大きさによって、「大」「中」「小」があります。量は店によって違いますが、「中」がだいたい350~500mlぐらいです。注文のときに「中生/生中」と言えば、生ビールの中ジョッキ、の意味になります。<br><br>また全国各地には、その土地で造った「地ビール」もあります。旅行に行ったときは、その土地の地ビールを飲んでみるのも楽しいかもしれません。`,
-
-        // [cite: 148, 149, 150]
-        `【22. おしぼりと水】<br>日本では飲食店に入ると、まずおしぼりと水が出されることが多いです。おしぼりは、小さいサイズのハンドタオルで、熱いお湯で湿らせてあります(夏は冷やしてあることもあります)。客は、おしぼりを出されたら、まずそれで手を拭きます。<br><br>水は、日本では無料で提供されます。日本ではどこでも水道水がそのまま飲めるからです。この無料の水のことを「お冷や」と呼ぶこともあります。おかわりも自由で、ほしいときは店員を呼んで「お水、ください」「お冷や、お願いします」のように言えば、追加してもらえます。居酒屋の場合は、飲み物を注文することが想定されているので、水は最初は提供されませんが、頼めば無料でもらえます。日本では、食事といっしょにお湯や炭酸水を飲むことは、一般的ではありません。お湯は頼めばもらえる可能性はあります。炭酸水が飲みたい場合は、有料で注文することになります。`,
-
-        // [cite: 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162]
-        `【23. 日本の住宅の種類】<br>住宅の形には、いくつかの種類があります。<br><br>・マンション<br>日本語の「マンション」は、鉄筋コンクリートで造られた、比較的大きめの集合住宅です。部屋を買って住む場合と、家賃を払って借りて住む場合があります。近年、特に都市部では、マンションが多く建てられています。土地を有効利用するため、高層建築にしたマンションを「タワーマンション(タワマン)」ということもあります。<br><br>・アパート<br>アパートは、マンションほど大きくなく、たいてい2階建てから3階建てぐらいで、エレベーターはなく、部屋数も少ない建物を言います。木造のことも多いです。借りて住むのが一般的で、マンションと比べると、家賃が安い印象があります。ただし、法律的にはマンションとアパートには明確な区別はありません。<br><br>・一戸建て<br>郊外、または地方では特に、一戸建てに住んでいる人も多くいます。自分で購入して住んでいる人がほとんどです。若いときは都心の集合住宅に住み、結婚して家族が増えたら郊外に一戸建てを買う、というパターンもあります。最近では、都心の便利な場所で一戸建てに住みたい、というニーズから、都心のせまい土地に3階建ての一戸建てを建てることも増えています。<br><br>・シェアハウス<br>一軒の家を複数の人で借りて住むスタイルの賃貸住宅で、個室と共用スペースがあります。部屋は自分の個室がありますが、キッチンやシャワー、ラウンジなどは入居者が共同で利用します。ほかの人との交流もできることから、学生や外国人に人気があります。<br><br>・寮<br>会社の社員のため、または学生のための集合住宅で、「社員寮」「学生寮」などがあります。自分の個室があり、トイレ、キッチン、風呂などは共同で利用します。個室がなく、ベッドのみが割り当てられる寮もあります。食事付きで、毎日の食事が食堂で提供される場合もあります。家賃は非常に安いことが一般的です。`,
-
-        // [cite: 163, 164, 165]
-        `【24. 制服】<br>本文に、職場の更衣室で着替える場面が出てきましたが、これは私服から職場の制服に着替えることを意味しています。日本では、職場でも、学校でも、制服を取り入れているところが多くあります。工場などでは、働く際の安全確保のために作業服に着替えますが、作業服を会社から制服として支給することによって、労働者の負担を減らすことができます。また、職場の制服には会社の人と会社外の人をすぐ区別したり、会社内の一体感を高めたりという効果を期待している場合もあるようです。<br><br>制服がない場合も、業種や会社によっては一定の服装が期待されることもあります。例えば金融系のオフィスなら「紺か濃いグレーのスーツに白いシャツ、ストライプのネクタイ、黒い革靴」など、暗黙の了解として、同じような服装が期待されることもあります。日本社会では、個性的な服装よりも、ほかの人と同じような服装を求められる場合があります。職場によって異なりますので、制服がない場合は、会社での服装について、最初に聞いてみるといいでしょう。`,
-
-        // [cite: 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177]
-        `【25. お茶】<br>日本語で「お茶」と言ったときは、緑茶を指すときと、広くお茶一般を指すときがあります。緑茶は、急須でいれたり、ティーバッグを使ったりします。温かいものを飲むことが多いですが、ペットボトルの冷たい緑茶も一般的になってきています。日本で飲まれるお茶には、ほかにも以下のようなものがあります。<br><br>・紅茶<br>海外でよく飲まれている発酵したお茶。日本では温かいお湯にティーバッグの紅茶を入れて作られることが多い。<br><br>・麦茶<br>大麦から作られたお茶で、特に夏、冷やして飲まれることが多い。飲食店では、水の代わりに麦茶を無料で出す店もある。<br><br>・抹茶<br>お茶の葉を粉にしたもので、茶道で使われるお茶。抹茶はお茶として飲むだけではなく、ケーキやチョコレート、アイスクリームなど、お菓子の材料としても人気がある。<br><br>・ウーロン茶<br>中国を原産とする、半分発酵させたお茶。茶色で独特の渋みがある。<br><br>このほか、何種類かのお茶をブレンドした「爽健美茶」「十六茶」などの商品もあり、ペットボトルとして売られています。<br><br>日本のペットボトルのお茶は、紅茶以外は普通砂糖が入っていないので、甘くないことが特徴です。おにぎりやお弁当などを食べるときにいっしょに飲むと、よく合います。`,
-
-        // [cite: 178, 179, 180]
-        `【26. FAX】<br>FAX(ファクシミリ)は、送信元の画像をデータに変換して電話回線を通じて送り、送信先で紙に印刷することができる機械です。1990年代までは、世界で使われていましたが、インターネットの普及とともに、だんだん使われなくなってきました。<br><br>しかし、日本ではいまだにFAXは現役です。特に、役所関係の文書のやりとりや、マスコミ関係の通知や連絡などに、FAXを使うことが少なくありません。日本で今もFAXが使われている理由としては、FAXはハンコの画像や手書きの書類がそのまま送れるので、インターネットのメールよりも信用できるから、という理由を挙げる人もいます。役所の手続きなどでは、今でもメールでの連絡を認めず、FAXを送らなければ受け付けてもらえないこともあります。`,
-
-        // [cite: 181, 182, 183]
-        `【27. 朝礼】<br>日本の多くの企業では、朝、仕事が始まるとき、従業員が集まって、あいさつをしたり、連絡を行ったりします。これを「朝礼」といいます。朝礼の主な目的は、その日の仕事の流れや特別な注意事項など、連絡事項を伝えることですが、従業員が集まって顔を合わせてあいさつをして、これから仕事を始めるというモードに切り替えるという意味もあります。<br><br>企業の中には、朝礼に「ラジオ体操」を取り入れていることもあります。ラジオ体操は、NHKの体操番組で使われている体操で、多くの日本人にとって、子どものころから学校などで行っている身近な存在です。朝礼のときに体操をすることは、そのあとの労働のために体を慣れさせておくなどの意図があるようです。`,
-
-        // [cite: 184, 185, 186]
-        `【28. 公営プール】<br>日本では、屋外プールのシーズンは、7月~8月です。この時期には、市や区などの公営プールがオープンします。公営プールは、数百円という安い利用料で利用できます。自治体によって、その市や区の在住・在勤者しか利用できないところもありますが、広く開放してだれでも利用できるところもあります。ただし、プールごとに使える時間が決まっていますので、利用したいと思ったら、あらかじめネットで調べてから行きましょう。<br><br>施設によって、「必ずスイミングキャップをかぶらなければならない」「日焼け止めやサンオイルは禁止」など、ルールが異なりますので、注意が必要です。`,
-
-        // [cite: 187, 188, 189, 190, 191, 192, 193]
-        `【29. 映画を見る】<br>映画館で映画を見る方法は、ここ数年で大きく変わりました。以前は、映画館が上映する映画を決め、その映画を一定の期間、1日に繰り返し上映していました。客は、見たい映画を上映している映画館を選び、都合のいい時間の回を見に行きました。また座席は自由席でした。<br><br>現在の映画館は、シネコン(シネマコンプレックス)という形式が主流になりました。シネコンは1つの施設に複数の部屋(スクリーン)があり、さまざまな映画を割り振って上映しています。人気がある映画はいくつものスクリーンで何回も上映されたり、公開からしばらく経った映画は1日に1回しか上映されなかったりなど、やや複雑です。座席は指定席になっています。シネコンの映画館は、デパートやショッピングモールの中にあることが多いです。<br><br>映画の料金は、大人がだいたい1800~1900円ぐらいです (2020年現在)。3DやIMAXなどは別料金がかかります。「映画の日」や「レディースデー」など、割引になる日もありますので、チェックするといいでしょう。映画館の会員になると、何回か見たら1回ただで見られるサービスを行っているところもあります。<br><br>以下では、シネコン型の映画館で、当日チケットを買って映画を見る場合の方法を説明します。`
-    ];
-
-    // Database Kotoba / Kanji Komprehensif
-    const vocab = [
-        { kanji: "日本", furigana: "にほん", arti: "Jepang" },
-        { kanji: "腰", furigana: "こし", arti: "pinggang, punggung bawah" },
-        { kanji: "曲げる", furigana: "まげる", arti: "membungkukkan, menekuk" },
-        { kanji: "頭", furigana: "あたま", arti: "kepala" },
-        { kanji: "前", furigana: "まえ", arti: "depan" },
-        { kanji: "下げる", furigana: "さげる", arti: "menurunkan" },
-        { kanji: "お礼", furigana: "おれい", arti: "ucapan terima kasih" },
-        { kanji: "使う", furigana: "つかう", arti: "menggunakan" },
-        { kanji: "角度", furigana: "かくど", arti: "sudut" },
-        { kanji: "大きい", furigana: "おおきい", arti: "besar" },
-        { kanji: "敬意", furigana: "けいい", arti: "rasa hormat" },
-        { kanji: "高い", furigana: "たかい", arti: "tinggi" },
-        { kanji: "道", furigana: "みち", arti: "jalan" },
-        { kanji: "知り合い", furigana: "しりあい", arti: "kenalan" },
-        { kanji: "会う", furigana: "あう", arti: "bertemu" },
-        { kanji: "首", furigana: "くび", arti: "leher" },
-        { kanji: "少し", furigana: "すこし", arti: "sedikit" },
-        { kanji: "人", furigana: "ひと", arti: "orang" },
-        { kanji: "握手", furigana: "あくしゅ", arti: "berjabat tangan" },
-        { kanji: "世界", furigana: "せかい", arti: "dunia" },
-        { kanji: "一般的", furigana: "いっぱんてき", arti: "umum" },
-        { kanji: "両手", furigana: "りょうて", arti: "kedua tangan" },
-        { kanji: "胸", furigana: "むね", arti: "dada" },
-        { kanji: "合わせる", furigana: "あわせる", arti: "menyatukan, menggabungkan" },
-        { kanji: "飯", furigana: "はん", arti: "nasi, makanan" },
-        { kanji: "食べる", furigana: "たべる", arti: "makan" },
-        { kanji: "普通", furigana: "ふつう", arti: "biasanya, normal" },
-        { kanji: "誤解", furigana: "ごかい", arti: "kesalahpahaman" },
-        { kanji: "少ない", furigana: "すくない", arti: "sedikit, tidak banyak" },
-        { kanji: "日本語", furigana: "にほんご", arti: "bahasa Jepang" },
-        { kanji: "別れ", furigana: "わかれ", arti: "perpisahan" },
-        { kanji: "実際", furigana: "じっさい", arti: "kenyataannya, sebenarnya" },
-        { kanji: "日常生活", furigana: "にちじょうせいかつ", arti: "kehidupan sehari-hari" },
-        { kanji: "学校", furigana: "がっこう", arti: "sekolah" },
-        { kanji: "生徒", furigana: "せいと", arti: "siswa" },
-        { kanji: "先生", furigana: "せんせい", arti: "guru" },
-        { kanji: "間", furigana: "あいだ", arti: "antara" },
-        { kanji: "告げる", furigana: "つげる", arti: "menyampaikan, mengucapkan" },
-        { kanji: "場面", furigana: "ばめん", arti: "situasi, adegan" },
-        { kanji: "多い", furigana: "おおい", arti: "banyak" },
-        { kanji: "教科書", furigana: "きょうかしょ", arti: "buku pelajaran" },
-        { kanji: "本文", furigana: "ほんぶん", arti: "teks utama" },
-        { kanji: "練習", furigana: "れんしゅう", arti: "latihan" },
-        { kanji: "失礼", furigana: "しつれい", arti: "tidak sopan, permisi" },
-        { kanji: "言い方", furigana: "いいかた", arti: "cara mengucapkan, ungkapan" },
-        { kanji: "謝る", furigana: "あやまる", arti: "meminta maaf" },
-        { kanji: "場合", furigana: "ばあい", arti: "kasus, situasi" },
-        { kanji: "落とし物", furigana: "おとしもの", arti: "barang hilang" },
-        { kanji: "拾う", furigana: "ひろう", arti: "memungut" },
-        { kanji: "席", furigana: "せき", arti: "kursi, tempat duduk" },
-        { kanji: "譲る", furigana: "ゆずる", arti: "memberikan, mengalah" },
-        { kanji: "出てくる", furigana: "でてくる", arti: "muncul" },
-        { kanji: "自分", furigana: "じぶん", arti: "diri sendiri" },
-        { kanji: "相手", furigana: "あいて", arti: "lawan bicara, pihak lain" },
-        { kanji: "不利益", furigana: "ふりえき", arti: "kerugian" },
-        { kanji: "負担", furigana: "ふたん", arti: "beban" },
-        { kanji: "感じる", furigana: "かんじる", arti: "merasakan" },
-        { kanji: "礼", furigana: "れい", arti: "terima kasih, penghormatan" },
-        { kanji: "表す", furigana: "あらわす", arti: "menyatakan, menunjukkan" },
-        { kanji: "意味", furigana: "いみ", arti: "arti, makna" },
-        { kanji: "例えば", furigana: "たとえば", arti: "misalnya" },
-        { kanji: "祝い", furigana: "いわい", arti: "ucapan selamat, perayaan" },
-        { kanji: "言う", furigana: "いう", arti: "mengatakan" },
-        { kanji: "使い分け", furigana: "つかいわけ", arti: "penggunaan yang dibedakan sesuai situasi" },
-        { kanji: "難しい", furigana: "むずかしい", arti: "sulit" },
-        { kanji: "大丈夫", furigana: "だいじょうぶ", arti: "tidak masalah, baik-baik saja" },
-        { kanji: "略語", furigana: "りゃくご", arti: "singkatan" },
-        { kanji: "省略", furigana: "しょうりゃく", arti: "penyingkatan" },
-        { kanji: "作る", furigana: "つくる", arti: "membuat" },
-        { kanji: "後ろ", furigana: "うしろ", arti: "belakang" },
-        { kanji: "部分", furigana: "ぶぶん", arti: "bagian" },
-        { kanji: "複合語", furigana: "ふくごうご", arti: "kata majemuk" },
-        { kanji: "文字", furigana: "もじ", arti: "huruf, karakter" },
-        { kanji: "組み合わせる", furigana: "くみあわせる", arti: "menggabungkan" },
-        { kanji: "外来語", furigana: "がいらいご", arti: "kata serapan" },
-        { kanji: "見られる", furigana: "みられる", arti: "terlihat, ditemukan" },
-        { kanji: "漢字", furigana: "かんじ", arti: "huruf kanji" },
-        { kanji: "人名", furigana: "じんめい", arti: "nama orang" },
-        { kanji: "以下", furigana: "いか", arti: "berikut ini" },
-        { kanji: "例", furigana: "れい", arti: "contoh" },
-        { kanji: "紹介", furigana: "しょうかい", arti: "memperkenalkan" },
-        { kanji: "蚊", furigana: "か", arti: "nyamuk" },
-        { kanji: "夏", furigana: "なつ", arti: "musim panas" },
-        { kanji: "発生", furigana: "はっせい", arti: "muncul, berkembang" },
-        { kanji: "特に", furigana: "とくに", arti: "terutama" },
-        { kanji: "夕方", furigana: "ゆうがた", arti: "sore hari" },
-        { kanji: "外", furigana: "そと", arti: "luar" },
-        { kanji: "寄る", furigana: "よる", arti: "mendekat" },
-        { kanji: "血", furigana: "ち", arti: "darah" },
-        { kanji: "吸う", furigana: "すう", arti: "mengisap" },
-        { kanji: "刺される", furigana: "さされる", arti: "disengat, digigit" },
-        { kanji: "非常に", furigana: "ひじょうに", arti: "sangat" },
-        { kanji: "熱", furigana: "ねつ", arti: "demam, panas" },
-        { kanji: "伝染病", furigana: "でんせんびょう", arti: "penyakit menular" },
-        { kanji: "媒介", furigana: "ばいかい", arti: "perantara, media penularan" },
-        { kanji: "心配", furigana: "しんぱい", arti: "khawatir" },
-        { kanji: "必要", furigana: "ひつよう", arti: "perlu, kebutuhan" },
-        { kanji: "防ぐ", furigana: "ふせぐ", arti: "mencegah" },
-        { kanji: "方法", furigana: "ほうほう", arti: "cara, metode" },
-        { kanji: "手", furigana: "て", arti: "tangan" },
-        { kanji: "足", furigana: "あし", arti: "kaki" },
-        { kanji: "虫除け", furigana: "むしよけ", arti: "penolak serangga" },
-        { kanji: "蚊取り線香", furigana: "かとりせんこう", arti: "obat nyamuk bakar" },
-        { kanji: "殺す", furigana: "ころす", arti: "membunuh" },
-        { kanji: "成分", furigana: "せいぶん", arti: "kandungan, komponen" },
-        { kanji: "入る", furigana: "はいる", arti: "masuk" },
-        { kanji: "線香", furigana: "せんこう", arti: "dupa" },
-        { kanji: "伝統的", furigana: "でんとうてき", arti: "tradisional" },
-        { kanji: "強い", furigana: "つよい", arti: "kuat" },
-        { kanji: "灰", furigana: "はい", arti: "abu" },
-        { kanji: "始末", furigana: "しまつ", arti: "penanganan, membereskan" },
-        { kanji: "大変", furigana: "たいへん", arti: "sulit, berat" },
-        { kanji: "現在", furigana: "げんざい", arti: "saat ini" },
-        { kanji: "電気式", furigana: "でんきしき", arti: "tipe elektrik" },
-        { kanji: "買う", furigana: "かう", arti: "membeli" },
-        { kanji: "言語", furigana: "げんご", arti: "bahasa" },
-        { kanji: "最も", furigana: "もっとも", arti: "paling" },
-        { kanji: "複雑", furigana: "ふくざつ", arti: "rumit" },
-        { kanji: "文字体系", furigana: "もじたいけい", arti: "sistem tulisan" },
-        { kanji: "持つ", furigana: "もつ", arti: "memiliki" },
-        { kanji: "複数", furigana: "ふくすう", arti: "lebih dari satu" },
-        { kanji: "種類", furigana: "しゅるい", arti: "jenis" },
-        { kanji: "中国", furigana: "ちゅうごく", arti: "Tiongkok" },
-        { kanji: "起源", furigana: "きげん", arti: "asal-usul" },
-        { kanji: "基本的", furigana: "きほんてき", arti: "pada dasarnya" },
-        { kanji: "書く", furigana: "かく", arti: "menulis" },
-        { kanji: "担う", furigana: "になう", arti: "memikul, menjalankan peran" },
-        { kanji: "表す", furigana: "あらわす", arti: "menunjukkan, menyatakan" },
-        { kanji: "読み方", furigana: "よみかた", arti: "cara membaca" },
-        { kanji: "特徴", furigana: "とくちょう", arti: "ciri khas" },
-        { kanji: "日曜日", furigana: "にちようび", arti: "hari Minggu" },
-        { kanji: "違う", furigana: "ちがう", arti: "berbeda" },
-        { kanji: "読む", furigana: "よむ", arti: "membaca" },
-        { kanji: "崩す", furigana: "くずす", arti: "merombak, menyederhanakan" },
-        { kanji: "平安時代", furigana: "へいあんじだい", arti: "Zaman Heian" },
-        { kanji: "初期", furigana: "しょき", arti: "masa awal" },
-        { kanji: "主に", furigana: "おもに", arti: "terutama" },
-        { kanji: "助詞", furigana: "じょし", arti: "partikel" },
-        { kanji: "動詞", furigana: "どうし", arti: "kata kerja" },
-        { kanji: "形容詞", furigana: "けいようし", arti: "kata sifat" },
-        { kanji: "語尾", furigana: "ごび", arti: "akhiran kata" },
-        { kanji: "文法的", furigana: "ぶんぽうてき", arti: "gramatikal" },
-        { kanji: "働き", furigana: "はたらき", arti: "fungsi, peran" },
-        { kanji: "一部", furigana: "いちぶ", arti: "sebagian" },
-        { kanji: "時期", furigana: "じき", arti: "periode, masa" },
-        { kanji: "外国", furigana: "がいこく", arti: "negara asing" },
-        { kanji: "地名", furigana: "ちめい", arti: "nama tempat" },
-        { kanji: "動物", furigana: "どうぶつ", arti: "hewan" },
-        { kanji: "植物", furigana: "しょくぶつ", arti: "tumbuhan" },
-        { kanji: "名前", furigana: "なまえ", arti: "nama" },
-        { kanji: "俗語", furigana: "ぞくご", arti: "bahasa gaul, slang" },
-        { kanji: "固有名詞", furigana: "こゆうめいし", arti: "kata benda khusus" },
-        { kanji: "来る", furigana: "くる", arti: "datang" },
-        { kanji: "外国人", furigana: "がいこくじん", arti: "orang asing" },
-        { kanji: "駅名", furigana: "えきめい", arti: "nama stasiun" },
-        { kanji: "日常的", furigana: "にちじょうてき", arti: "sehari-hari, rutin" },
-        { kanji: "字", furigana: "じ", arti: "huruf, karakter" },
-        { kanji: "同じ", furigana: "おなじ", arti: "sama" },
-        { kanji: "外す", furigana: "はずす", arti: "melepas, menghilangkan" },
-        { kanji: "読まれる", furigana: "よまれる", arti: "dibaca" },
-        { kanji: "書かれる", furigana: "かかれる", arti: "ditulis" },
-        { kanji: "使われる", furigana: "つかわれる", arti: "digunakan" },
-        { kanji: "表した", furigana: "あらわした", arti: "yang dituliskan, diekspresikan" },
-        { kanji: "駅", furigana: "えき", arti: "stasiun" },
-        { kanji: "呼び方", furigana: "よびかた", arti: "cara memanggil" },
-        { kanji: "後ろ", furigana: "うしろ", arti: "belakang, setelah" },
-        { kanji: "普通", furigana: "ふつう", arti: "biasa, umum" },
-        { kanji: "男性", furigana: "だんせい", arti: "laki-laki" },
-        { kanji: "女性", furigana: "じょせい", arti: "perempuan" },
-        { kanji: "年上", furigana: "としうえ", arti: "orang yang lebih tua" },
-        { kanji: "年下", furigana: "としした", arti: "orang yang lebih muda" },
-        { kanji: "結婚", furigana: "けっこん", arti: "pernikahan" },
-        { kanji: "関係", furigana: "かんけい", arti: "hubungan, kaitan" },
-        { kanji: "非常", furigana: "ひじょう", arti: "sangat" },
-        { kanji: "便利", furigana: "べんり", arti: "praktis, nyaman" },
-        { kanji: "日本人", furigana: "にほんじん", arti: "orang Jepang" },
-        { kanji: "前", furigana: "まえ", arti: "sebelum, depan" },
-        { kanji: "苗字", furigana: "みょうじ", arti: "nama keluarga" },
-        { kanji: "下", furigana: "した", arti: "bawah" },
-        { kanji: "家族", furigana: "かぞく", arti: "keluarga" },
-        { kanji: "親しい", furigana: "したしい", arti: "akrab" },
-        { kanji: "友人", furigana: "ゆうじん", arti: "teman" },
-        { kanji: "同士", furigana: "どうし", arti: "sesama" },
-        { kanji: "仕事", furigana: "しごと", arti: "pekerjaan" },
-        { kanji: "場面", furigana: "ばめん", arti: "situasi" },
-        { kanji: "本人", furigana: "ほんにん", arti: "orang yang bersangkutan" },
-        { kanji: "君", furigana: "くん", arti: "sufiks untuk laki-laki muda" },
-        { kanji: "様", furigana: "さま", arti: "Tuan/Nyonya (sangat sopan)" },
-        { kanji: "同年代", furigana: "どうねんだい", arti: "generasi/seusia" },
-        { kanji: "子ども", furigana: "こども", arti: "anak" },
-        { kanji: "親しみ", furigana: "したしみ", arti: "keakraban" },
-        { kanji: "込める", furigana: "こめる", arti: "mencurahkan, memasukkan perasaan" },
-        { kanji: "丁寧", furigana: "ていねい", arti: "sopan" },
-        { kanji: "敬称", furigana: "けいしょう", arti: "gelar kehormatan" },
-        { kanji: "店", furigana: "みせ", arti: "toko" },
-        { kanji: "客", furigana: "きゃく", arti: "pelanggan, tamu" },
-        { kanji: "元号", furigana: "げんごう", arti: "nama era Jepang" },
-        { kanji: "西暦", furigana: "せいれき", arti: "kalender Masehi" },
-        { kanji: "役所", furigana: "やくしょ", arti: "kantor pemerintahan" },
-        { kanji: "公的", furigana: "こうてき", arti: "resmi, publik" },
-        { kanji: "文書", furigana: "ぶんしょ", arti: "dokumen" },
-        { kanji: "独自", furigana: "どくじ", arti: "khas, unik" },
-        { kanji: "年号", furigana: "ねんごう", arti: "nama tahun/era" },
-        { kanji: "令和", furigana: "れいわ", arti: "Era Reiwa" },
-        { kanji: "番目", furigana: "ばんめ", arti: "urutan ke-" },
-        { kanji: "新しい", furigana: "あたらしい", arti: "baru" },
-        { kanji: "天皇", furigana: "てんのう", arti: "Kaisar Jepang" },
-        { kanji: "即位", furigana: "そくい", arti: "naik takhta" },
-        { kanji: "年", furigana: "とし", arti: "tahun" },
-        { kanji: "昭和", furigana: "しょうわ", arti: "Era Shōwa" },
-        { kanji: "代表", furigana: "だいひょう", arti: "mewakili" },
-        { kanji: "歌", furigana: "うた", arti: "lagu" },
-        { kanji: "平成", furigana: "へいせい", arti: "Era Heisei" },
-        { kanji: "大不況", furigana: "だいふきょう", arti: "resesi besar" },
-        { kanji: "時代", furigana: "じだい", arti: "zaman, era" },
-        { kanji: "生活", furigana: "せいかつ", arti: "kehidupan" },
-        { kanji: "根付く", furigana: "ねづく", arti: "berakar, mengakar" },
-        { kanji: "以下", furigana: "いか", arti: "berikut" },
-        { kanji: "表", furigana: "ひょう", arti: "tabel" },
-        { kanji: "対照表", furigana: "たいしょうひょう", arti: "tabel perbandingan" },
-        { kanji: "生まれる", furigana: "うまれる", arti: "lahir" },
-        { kanji: "何年", furigana: "なんねん", arti: "tahun berapa" },
-        { kanji: "驚かす", furigana: "おどろかす", arti: "membuat terkejut" },
-        { kanji: "元年", furigana: "がんねん", arti: "tahun pertama suatu era" },
-        { kanji: "主な", furigana: "おもな", arti: "utama" },
-        { kanji: "都市", furigana: "とし", arti: "kota" },
-        { kanji: "東京", furigana: "とうきょう", arti: "Tokyo" },
-        { kanji: "首都", furigana: "しゅと", arti: "ibu kota" },
-        { kanji: "東京都区部", furigana: "とうきょうとくぶ", arti: "wilayah 23 distrik Tokyo" },
-        { kanji: "人口", furigana: "じんこう", arti: "populasi" },
-        { kanji: "約", furigana: "やく", arti: "sekitar" },
-        { kanji: "人口密度", furigana: "じんこうみつど", arti: "kepadatan penduduk" },
-        { kanji: "日本一", furigana: "にほんいち", arti: "nomor satu di Jepang" },
-        { kanji: "政治", furigana: "せいじ", arti: "politik" },
-        { kanji: "経済", furigana: "けいざい", arti: "ekonomi" },
-        { kanji: "中心", furigana: "ちゅうしん", arti: "pusat" },
-        { kanji: "県", furigana: "けん", arti: "prefektur" },
-        { kanji: "権限", furigana: "けんげん", arti: "wewenang" },
-        { kanji: "与える", furigana: "あたえる", arti: "memberikan" },
-        { kanji: "大都市", furigana: "だいとし", arti: "kota besar" },
-        { kanji: "政令指定都市", furigana: "せいれいしていとし", arti: "kota yang ditetapkan melalui peraturan pemerintah" },
-        { kanji: "全部", furigana: "ぜんぶ", arti: "seluruhnya" },
-        { kanji: "地図", furigana: "ちず", arti: "peta" },
-        { kanji: "以上", furigana: "いじょう", arti: "lebih dari" },
-        { kanji: "位置", furigana: "いち", arti: "posisi, letak" },
-        { kanji: "覚える", furigana: "おぼえる", arti: "menghafal, mengingat" },
-        { kanji: "役に立つ", furigana: "やくにたつ", arti: "bermanfaat" },
-        { kanji: "立つ", furigana: "たつ", arti: "berdiri; berguna (dalam ungkapan)" },
-        { kanji: "年齢", furigana: "ねんれい", arti: "usia" },
-        { kanji: "聞く", furigana: "きく", arti: "bertanya, mendengar" },
-        { kanji: "国", furigana: "くに", arti: "negara" },
-        { kanji: "失礼", furigana: "しつれい", arti: "tidak sopan" },
-        { kanji: "信じる", furigana: "しんじる", arti: "percaya" },
-        { kanji: "文化", furigana: "ぶんか", arti: "budaya" },
-        { kanji: "一方", furigana: "いっぽう", arti: "di sisi lain" },
-        { kanji: "気軽", furigana: "きがる", arti: "santai, tanpa sungkan" },
-        { kanji: "考える", furigana: "かんがえる", arti: "berpikir, menganggap" },
-        { kanji: "文化圏", furigana: "ぶんかけん", arti: "lingkup budaya" },
-        { kanji: "比べる", furigana: "くらべる", arti: "membandingkan" },
-        { kanji: "機会", furigana: "きかい", arti: "kesempatan" },
-        { kanji: "理由", furigana: "りゆう", arti: "alasan" },
-        { kanji: "目上", furigana: "めうえ", arti: "orang yang lebih tinggi kedudukannya/lebih tua" },
-        { kanji: "目下", furigana: "めした", arti: "orang yang lebih rendah kedudukannya/lebih muda" },
-        { kanji: "区別", furigana: "くべつ", arti: "pembedaan" },
-        { kanji: "社会的", furigana: "しゃかいてき", arti: "bersifat sosial" },
-        { kanji: "意味", furigana: "いみ", arti: "makna" },
-        { kanji: "年上", furigana: "としうえ", arti: "lebih tua" },
-        { kanji: "年下", furigana: "としした", arti: "lebih muda" },
-        { kanji: "同年代", furigana: "どうねんだい", arti: "seusia" },
-        { kanji: "使い分ける", furigana: "つかいわける", arti: "menggunakan secara berbeda sesuai situasi" },
-        { kanji: "地方", furigana: "ちほう", arti: "daerah" },
-        { kanji: "年代", furigana: "ねんだい", arti: "generasi, kelompok usia" },
-        { kanji: "意識", furigana: "いしき", arti: "kesadaran" },
-        { kanji: "本当", furigana: "ほんとう", arti: "sebenarnya" },
-        { kanji: "答える", furigana: "こたえる", arti: "menjawab" },
-        { kanji: "秘密", furigana: "ひみつ", arti: "rahasia" },
-        { kanji: "歳", furigana: "さい", arti: "tahun usia" },
-        { kanji: "冗談", furigana: "じょうだん", arti: "lelucon, bercanda" },
-        { kanji: "何歳", furigana: "なんさい", arti: "berapa usia" },
-        { kanji: "見える", furigana: "みえる", arti: "terlihat" },
-        { kanji: "逆", furigana: "ぎゃく", arti: "kebalikan" },
-        { kanji: "質問", furigana: "しつもん", arti: "pertanyaan" },
-        { kanji: "直接的", furigana: "ちょくせつてき", arti: "secara langsung" },
-        { kanji: "相手", furigana: "あいて", arti: "lawan bicara" },
-        { kanji: "知る", furigana: "しる", arti: "mengetahui" },
-        { kanji: "干支", furigana: "えと", arti: "shio" },
-        { kanji: "支", furigana: "し", arti: "cabang zodiak (12 shio)" },
-        { kanji: "概念", furigana: "がいねん", arti: "konsep" },
-        { kanji: "順番", furigana: "じゅんばん", arti: "urutan" },
-        { kanji: "割り振る", furigana: "わりふる", arti: "membagi, mengalokasikan" },
-        { kanji: "生まれ", furigana: "うまれ", arti: "kelahiran" },
-        { kanji: "度", furigana: "ど", arti: "kali, derajat" },
-        { kanji: "西暦", furigana: "せいれき", arti: "tahun Masehi" },
-        { kanji: "推測", furigana: "すいそく", arti: "perkiraan" },
-        { kanji: "知らない", furigana: "しらない", arti: "tidak tahu" },
-        { kanji: "覚える", furigana: "おぼえる", arti: "mengingat, menghafal" },
-        { kanji: "海", furigana: "うみ", arti: "laut" },
-        { kanji: "島国", furigana: "しまぐに", arti: "negara kepulauan" },
-        { kanji: "囲まれる", furigana: "かこまれる", arti: "dikelilingi" },
-        { kanji: "友だち", furigana: "ともだち", arti: "teman" },
-        { kanji: "海水浴", furigana: "かいすいよく", arti: "berenang/mandi di laut" },
-        { kanji: "出かける", furigana: "でかける", arti: "pergi keluar" },
-        { kanji: "沖縄", furigana: "おきなわ", arti: "Okinawa" },
-        { kanji: "月", furigana: "がつ", arti: "bulan" },
-        { kanji: "泳ぐ", furigana: "およぐ", arti: "berenang" },
-        { kanji: "海水浴場", furigana: "かいすいよくじょう", arti: "pantai tempat berenang" },
-        { kanji: "設置", furigana: "せっち", arti: "pemasangan, penyediaan" },
-        { kanji: "楽しむ", furigana: "たのしむ", arti: "menikmati" },
-        { kanji: "海の家", furigana: "うみのいえ", arti: "pondok/fasilitas di pantai" },
-        { kanji: "海岸", furigana: "かいがん", arti: "pantai, pesisir" },
-        { kanji: "休憩", furigana: "きゅうけい", arti: "istirahat" },
-        { kanji: "食事", furigana: "しょくじ", arti: "makan, hidangan" },
-        { kanji: "提供", furigana: "ていきょう", arti: "menyediakan" },
-        { kanji: "施設", furigana: "しせつ", arti: "fasilitas" },
-        { kanji: "南", furigana: "みなみ", arti: "selatan" },
-        { kanji: "一年中", furigana: "いちねんじゅう", arti: "sepanjang tahun" },
-        { kanji: "暖かい", furigana: "あたたかい", arti: "hangat" },
-        { kanji: "青い", furigana: "あおい", arti: "biru" },
-        { kanji: "白い", furigana: "しろい", arti: "putih" },
-        { kanji: "珊瑚", furigana: "さんご", arti: "karang (coral)" },
-        { kanji: "砂浜", furigana: "すなはま", arti: "pantai berpasir" },
-        { kanji: "美しい", furigana: "うつくしい", arti: "indah" },
-        { kanji: "人気", furigana: "にんき", arti: "populer" },
-        { kanji: "幸", furigana: "さち", arti: "hasil alam, karunia" },
-        { kanji: "旅行", furigana: "りょこう", arti: "perjalanan, wisata" },
-        { kanji: "楽しみ", furigana: "たのしみ", arti: "kesenangan" },
-        { kanji: "近く", furigana: "ちかく", arti: "dekat" },
-        { kanji: "漁港", furigana: "ぎょこう", arti: "pelabuhan nelayan" },
-        { kanji: "魚市場", furigana: "うおいちば", arti: "pasar ikan" },
-        { kanji: "新鮮", furigana: "しんせん", arti: "segar" },
-        { kanji: "魚介類", furigana: "ぎょかいるい", arti: "makanan laut" },
-        { kanji: "町", furigana: "まち", arti: "kota kecil" },
-        { kanji: "行く", furigana: "いく", arti: "pergi" },
-        { kanji: "土地", furigana: "とち", arti: "daerah, wilayah" },
-        { kanji: "刺身", furigana: "さしみ", arti: "sashimi" },
-        { kanji: "寿司", furigana: "すし", arti: "sushi" },
-        { kanji: "生", furigana: "なま", arti: "mentah" },
-        { kanji: "魚", furigana: "さかな", arti: "ikan" },
-        { kanji: "薄い", furigana: "うすい", arti: "tipis" },
-        { kanji: "切る", furigana: "きる", arti: "memotong" },
-        { kanji: "料理", furigana: "りょうり", arti: "masakan, hidangan" },
-        { kanji: "代表的", furigana: "だいひょうてき", arti: "khas, representatif" },
-        { kanji: "日本料理", furigana: "にほんりょうり", arti: "masakan Jepang" },
-        { kanji: "切り身", furigana: "きりみ", arti: "potongan fillet ikan" },
-        { kanji: "並べる", furigana: "ならべる", arti: "menyusun, menata" },
-        { kanji: "見た目", furigana: "みため", arti: "penampilan" },
-        { kanji: "盛り付ける", furigana: "もりつける", arti: "menyajikan, menata makanan" },
-        { kanji: "細い", furigana: "ほそい", arti: "tipis, ramping" },
-        { kanji: "大根", furigana: "だいこん", arti: "lobak putih" },
-        { kanji: "海藻", furigana: "かいそう", arti: "rumput laut" },
-        { kanji: "置く", furigana: "おく", arti: "meletakkan" },
-        { kanji: "残す", furigana: "のこす", arti: "menyisakan" },
-        { kanji: "酢飯", furigana: "すめし", arti: "nasi bercuka untuk sushi" },
-        { kanji: "世界中", furigana: "せかいじゅう", arti: "seluruh dunia" },
-        { kanji: "広まる", furigana: "ひろまる", arti: "menyebar" },
-        { kanji: "巻き寿司", furigana: "まきずし", arti: "sushi gulung" },
-        { kanji: "押し寿司", furigana: "おしずし", arti: "sushi tekan" },
-        { kanji: "本格的", furigana: "ほんかくてき", arti: "autentik, serius" },
-        { kanji: "寿司屋", furigana: "すしや", arti: "restoran sushi" },
-        { kanji: "高い", furigana: "たかい", arti: "mahal, tinggi" },
-        { kanji: "料金", furigana: "りょうきん", arti: "biaya, tarif" },
-        { kanji: "値段", furigana: "ねだん", arti: "harga" },
-        { kanji: "抑える", furigana: "おさえる", arti: "menekan, mengurangi" },
-        { kanji: "店", furigana: "みせ", arti: "toko, restoran" },
-        { kanji: "回転寿司", furigana: "かいてんずし", arti: "sushi putar" },
-        { kanji: "運ぶ", furigana: "はこぶ", arti: "mengangkut, membawa" },
-        { kanji: "比較的", furigana: "ひかくてき", arti: "relatif" },
-        { kanji: "安い", furigana: "やすい", arti: "murah" },
-        { kanji: "気軽", furigana: "きがる", arti: "santai, mudah" },
-        { kanji: "天ぷら", furigana: "てんぷら", arti: "tempura" },
-        { kanji: "野菜", furigana: "やさい", arti: "sayuran" },
-        { kanji: "小麦粉", furigana: "こむぎこ", arti: "tepung terigu" },
-        { kanji: "衣", furigana: "ころも", arti: "adonan/pelapis gorengan" },
-        { kanji: "油", furigana: "あぶら", arti: "minyak" },
-        { kanji: "揚げる", furigana: "あげる", arti: "menggoreng" },
-        { kanji: "料理", furigana: "りょうり", arti: "masakan" },
-        { kanji: "語源", furigana: "ごげん", arti: "asal kata" },
-        { kanji: "調味料", furigana: "ちょうみりょう", arti: "bumbu" },
-        { kanji: "由来", furigana: "ゆらい", arti: "berasal dari" },
-        { kanji: "塩", furigana: "しお", arti: "garam" },
-        { kanji: "飯", furigana: "めし／はん", arti: "nasi" },
-        { kanji: "上", furigana: "うえ", arti: "atas" },
-        { kanji: "食べ方", furigana: "たべかた", arti: "cara makan" },
-        { kanji: "和食", furigana: "わしょく", arti: "masakan Jepang" },
-        { kanji: "麺類", furigana: "めんるい", arti: "mi dan sejenisnya" },
-        { kanji: "太い", furigana: "ふとい", arti: "tebal" },
-        { kanji: "麺", furigana: "めん", arti: "mi" },
-        { kanji: "粉", furigana: "こな", arti: "tepung" },
-        { kanji: "温かい", furigana: "あたたかい", arti: "hangat" },
-        { kanji: "水", furigana: "みず", arti: "air" },
-        { kanji: "冷やす", furigana: "ひやす", arti: "mendinginkan" },
-        { kanji: "皿", furigana: "さら", arti: "piring" },
-        { kanji: "盛る", furigana: "もる", arti: "menyajikan, menaruh" },
-        { kanji: "濃い", furigana: "こい", arti: "kental, pekat" },
-        { kanji: "一方", furigana: "いっぽう", arti: "salah satu sisi" },
-        { kanji: "扱う", furigana: "あつかう", arti: "menangani, menjual" },
-        { kanji: "専門的", furigana: "せんもんてき", arti: "khusus, spesialis" },
-        { kanji: "多く", furigana: "おおく", arti: "banyak" },
-        { kanji: "両方", furigana: "りょうほう", arti: "kedua-duanya" },
-        { kanji: "選ぶ", furigana: "えらぶ", arti: "memilih" },
-        { kanji: "電車", furigana: "でんしゃ", arti: "kereta listrik" },
-        { kanji: "短い", furigana: "みじかい", arti: "pendek" },
-        { kanji: "時間", furigana: "じかん", arti: "waktu" },
-        { kanji: "提供", furigana: "ていきょう", arti: "penyediaan" },
-        { kanji: "急ぐ", furigana: "いそぐ", arti: "terburu-buru" },
-        { kanji: "便利", furigana: "べんり", arti: "praktis" },
-        { kanji: "音", furigana: "おと", arti: "suara" },
-        { kanji: "立てる", furigana: "たてる", arti: "membuat (suara)" },
-        { kanji: "香り", furigana: "かおり", arti: "aroma" },
-        { kanji: "伝える", furigana: "つたえる", arti: "menyampaikan" },
-        { kanji: "具", furigana: "ぐ", arti: "isian, topping" },
-        { kanji: "竹", furigana: "たけ", arti: "bambu" },
-        { kanji: "編む", furigana: "あむ", arti: "menganyam" },
-        { kanji: "器", furigana: "うつわ", arti: "wadah" },
-        { kanji: "冷たい", furigana: "つめたい", arti: "dingin" },
-        { kanji: "油揚げ", furigana: "あぶらあげ", arti: "tahu goreng tipis" },
-        { kanji: "関西", furigana: "かんさい", arti: "Kansai" },
-        { kanji: "月見", furigana: "つきみ", arti: "melihat bulan" },
-        { kanji: "生卵", furigana: "なまたまご", arti: "telur mentah" },
-        { kanji: "経由", furigana: "けいゆ", arti: "melalui" },
-        { kanji: "明治時代", furigana: "めいじじだい", arti: "Zaman Meiji" },
-        { kanji: "平均", furigana: "へいきん", arti: "rata-rata" },
-        { kanji: "週", furigana: "しゅう", arti: "minggu" },
-        { kanji: "度", furigana: "ど", arti: "kali" },
-        { kanji: "定食屋", furigana: "ていしょくや", arti: "restoran set menu" },
-        { kanji: "牛丼屋", furigana: "ぎゅうどんや", arti: "restoran gyudon" },
-        { kanji: "飲食店", furigana: "いんしょくてん", arti: "restoran/tempat makan" },
-        { kanji: "国民食", furigana: "こくみんしょく", arti: "makanan nasional" },
-        { kanji: "市販", furigana: "しはん", arti: "dijual di pasaran" },
-        { kanji: "簡単", furigana: "かんたん", arti: "mudah" },
-        { kanji: "袋", furigana: "ふくろ", arti: "kantong" },
-        { kanji: "湯", furigana: "ゆ", arti: "air panas" },
-        { kanji: "食品", furigana: "しょくひん", arti: "produk makanan" },
-        { kanji: "売る", furigana: "うる", arti: "menjual" },
-        { kanji: "食事", furigana: "しょくじ", arti: "makan" },
-        { kanji: "丼物", furigana: "どんぶりもの", arti: "hidangan nasi dalam mangkuk (donburi)" },
-        { kanji: "丼", furigana: "どんぶり", arti: "mangkuk besar untuk nasi" },
-        { kanji: "飯", furigana: "めし／はん", arti: "nasi, makanan" },
-        { kanji: "入れる", furigana: "いれる", arti: "memasukkan" },
-        { kanji: "具材", furigana: "ぐざい", arti: "bahan/isian makanan" },
-        { kanji: "牛丼", furigana: "ぎゅうどん", arti: "donburi daging sapi" },
-        { kanji: "品名", furigana: "ひんめい", arti: "nama produk/menu" },
-        { kanji: "呼ぶ", furigana: "よぶ", arti: "menyebut, memanggil" },
-        { kanji: "登場", furigana: "とうじょう", arti: "kemunculan" },
-        { kanji: "牛肉", furigana: "ぎゅうにく", arti: "daging sapi" },
-        { kanji: "炒める", furigana: "いためる", arti: "menumis" },
-        { kanji: "甘辛い", furigana: "あまからい", arti: "manis dan gurih/asin" },
-        { kanji: "味", furigana: "あじ", arti: "rasa" },
-        { kanji: "紅", furigana: "べに", arti: "merah tua" },
-        { kanji: "豚", furigana: "ぶた", arti: "babi" },
-        { kanji: "豚カツ", furigana: "とんかつ", arti: "pork cutlet" },
-        { kanji: "煮込む", furigana: "にこむ", arti: "merebus hingga meresap" },
-        { kanji: "卵", furigana: "たまご", arti: "telur" },
-        { kanji: "親子丼", furigana: "おやこどん", arti: "donburi ayam dan telur" },
-        { kanji: "焼き鳥", furigana: "やきとり", arti: "sate ayam Jepang" },
-        { kanji: "出す", furigana: "だす", arti: "menyajikan" },
-        { kanji: "鶏肉", furigana: "とりにく", arti: "daging ayam" },
-        { kanji: "親子", furigana: "おやこ", arti: "orang tua dan anak" },
-        { kanji: "代わり", furigana: "かわり", arti: "pengganti" },
-        { kanji: "豚肉", furigana: "ぶたにく", arti: "daging babi" },
-        { kanji: "他人丼", furigana: "たにんどん", arti: "donburi telur dengan daging selain ayam" },
-        { kanji: "載せる", furigana: "のせる", arti: "menaruh, mencantumkan" },
-        { kanji: "海鮮丼", furigana: "かいせんどん", arti: "donburi seafood/sashimi" },
-        { kanji: "鮭", furigana: "さけ", arti: "salmon" },
-        { kanji: "等", furigana: "など", arti: "dan lain-lain" },
-        { kanji: "鰻丼", furigana: "うなどん", arti: "donburi belut" },
-        { kanji: "鰻", furigana: "うなぎ", arti: "belut" },
-        { kanji: "蒲焼き", furigana: "かばやき", arti: "belut panggang dengan saus" },
-        { kanji: "高級", furigana: "こうきゅう", arti: "kelas atas, mewah" },
-        { kanji: "重箱", furigana: "じゅうばこ", arti: "kotak bertingkat untuk makanan" },
-        { kanji: "鰻重", furigana: "うなじゅう", arti: "belut dalam kotak lacquer" },
-        { kanji: "大きさ", furigana: "おおきさ", arti: "ukuran" },
-        { kanji: "松", furigana: "まつ", arti: "pinus (peringkat tertinggi)" },
-        { kanji: "竹", furigana: "たけ", arti: "bambu (peringkat menengah)" },
-        { kanji: "梅", furigana: "うめ", arti: "plum (peringkat dasar)" },
-        { kanji: "順位", furigana: "じゅんい", arti: "peringkat" },
-        { kanji: "高い", furigana: "たかい", arti: "tinggi, mahal" },
-        { kanji: "普通", furigana: "ふつう", arti: "biasa" },
-        { kanji: "異なる", furigana: "ことなる", arti: "berbeda" },
-        { kanji: "土用", furigana: "どよう", arti: "periode musiman tradisional" },
-        { kanji: "丑の日", furigana: "うしのひ", arti: "Hari Kerbau (dalam kalender tradisional)" },
-        { kanji: "習慣", furigana: "しゅうかん", arti: "kebiasaan" },
-        { kanji: "日", furigana: "ひ", arti: "hari" },
-        { kanji: "苦手", furigana: "にがて", arti: "tidak pandai, tidak suka" },
-        { kanji: "食べ物", furigana: "たべもの", arti: "makanan" },
-        { kanji: "中", furigana: "なか", arti: "di dalam" },
-        { kanji: "納豆", furigana: "なっとう", arti: "natto" },
-        { kanji: "梅干し", furigana: "うめぼし", arti: "acar plum asin" },
-        { kanji: "居酒屋", furigana: "いざかや", arti: "pub/restoran Jepang" },
-        { kanji: "塩辛", furigana: "しおから", arti: "makanan fermentasi asin dari seafood" },
-        { kanji: "声", furigana: "こえ", arti: "suara, komentar" },
-        { kanji: "聞く", furigana: "きく", arti: "mendengar" },
-        { kanji: "好み", furigana: "このみ", arti: "selera, kesukaan" },
-        { kanji: "試す", furigana: "ためす", arti: "mencoba" },
-        { kanji: "大豆", furigana: "だいず", arti: "kedelai" },
-        { kanji: "発酵", furigana: "はっこう", arti: "fermentasi" },
-        { kanji: "独特", furigana: "どくとく", arti: "khas, unik" },
-        { kanji: "糸", furigana: "いと", arti: "benang" },
-        { kanji: "引く", furigana: "ひく", arti: "menarik" },
-        { kanji: "粘り", furigana: "ねばり", arti: "kelengketan" },
-        { kanji: "朝食", furigana: "ちょうしょく", arti: "sarapan" },
-        { kanji: "関西", furigana: "かんさい", arti: "wilayah Kansai" },
-        { kanji: "関東", furigana: "かんとう", arti: "wilayah Kanto" },
-        { kanji: "典型", furigana: "てんけい", arti: "contoh khas, tipikal" },
-        { kanji: "考える", furigana: "かんがえる", arti: "menganggap" },
-        { kanji: "好き", furigana: "すき", arti: "suka" },
-        { kanji: "感心", furigana: "かんしん", arti: "kagum" },
-        { kanji: "驚く", furigana: "おどろく", arti: "terkejut" },
-        { kanji: "梅", furigana: "うめ", arti: "plum Jepang" },
-        { kanji: "実", furigana: "み", arti: "buah" },
-        { kanji: "塩漬け", furigana: "しおづけ", arti: "diasinkan" },
-        { kanji: "酸っぱい", furigana: "すっぱい", arti: "asam" },
-        { kanji: "弁当", furigana: "べんとう", arti: "bekal makan" },
-        { kanji: "茶漬け", furigana: "ちゃづけ", arti: "nasi dengan teh/kaldu" },
-        { kanji: "健康食品", furigana: "けんこうしょくひん", arti: "makanan kesehatan" },
-        { kanji: "身", furigana: "み", arti: "daging/bagian tubuh" },
-        { kanji: "内臓", furigana: "ないぞう", arti: "organ dalam" },
-        { kanji: "合わせる", furigana: "あわせる", arti: "mencampurkan" },
-        { kanji: "刻む", furigana: "きざむ", arti: "mencincang" },
-        { kanji: "酒", furigana: "さけ", arti: "alkohol, sake" },
-        { kanji: "嫌い", furigana: "きらい", arti: "tidak suka" },
-        { kanji: "気持ち", furigana: "きもち", arti: "perasaan" },
-        { kanji: "悪い", furigana: "わるい", arti: "buruk" },
-        { kanji: "無理", furigana: "むり", arti: "tidak sanggup, mustahil" },
-        { kanji: "感想", furigana: "かんそう", arti: "kesan, pendapat" },
-        { kanji: "日本酒", furigana: "にほんしゅ", arti: "sake Jepang" },
-        { kanji: "米", furigana: "こめ", arti: "beras" },
-        { kanji: "日本各地", furigana: "にほんかくち", arti: "berbagai daerah di Jepang" },
-        { kanji: "酒蔵", furigana: "さかぐら", arti: "pabrik/gudang pembuatan sake" },
-        { kanji: "日本全国", furigana: "にほんぜんこく", arti: "seluruh Jepang" },
-        { kanji: "銘柄", furigana: "めいがら", arti: "merek, label" },
-        { kanji: "造る", furigana: "つくる", arti: "memproduksi, membuat" },
-        { kanji: "度数", furigana: "どすう", arti: "kadar alkohol" },
-        { kanji: "酒", furigana: "さけ", arti: "alkohol, minuman keras" },
-        { kanji: "指す", furigana: "さす", arti: "menunjuk, merujuk" },
-        { kanji: "飲料", furigana: "いんりょう", arti: "minuman" },
-        { kanji: "全体", furigana: "ぜんたい", arti: "keseluruhan" },
-        { kanji: "人工的", furigana: "じんこうてき", arti: "buatan, artifisial" },
-        { kanji: "米麹", furigana: "こめこうじ", arti: "koji beras" },
-        { kanji: "純米酒", furigana: "じゅんまいしゅ", arti: "sake murni dari beras" },
-        { kanji: "原料", furigana: "げんりょう", arti: "bahan baku" },
-        { kanji: "削る", furigana: "けずる", arti: "mengikis, memoles" },
-        { kanji: "芯", furigana: "しん", arti: "inti" },
-        { kanji: "吟醸酒", furigana: "ぎんじょうしゅ", arti: "sake ginjo" },
-        { kanji: "味わい", furigana: "あじわい", arti: "cita rasa" },
-        { kanji: "甘口", furigana: "あまくち", arti: "rasa manis" },
-        { kanji: "辛口", furigana: "からくち", arti: "rasa kering/tidak manis" },
-        { kanji: "分ける", furigana: "わける", arti: "membagi" },
-        { kanji: "成分", furigana: "せいぶん", arti: "komponen, kandungan" },
-        { kanji: "残る", furigana: "のこる", arti: "tersisa" },
-        { kanji: "比率", furigana: "ひりつ", arti: "perbandingan, rasio" },
-        { kanji: "飲み方", furigana: "のみかた", arti: "cara minum" },
-        { kanji: "冷酒", furigana: "れいしゅ", arti: "sake dingin" },
-        { kanji: "温める", furigana: "あたためる", arti: "menghangatkan" },
-        { kanji: "熱燗", furigana: "あつかん", arti: "sake hangat" },
-        { kanji: "飲む", furigana: "のむ", arti: "minum" },
-        { kanji: "最近", furigana: "さいきん", arti: "belakangan ini" },
-        { kanji: "集める", furigana: "あつめる", arti: "mengumpulkan" },
-        { kanji: "各地", furigana: "かくち", arti: "berbagai daerah" },
-        { kanji: "地", furigana: "ち", arti: "daerah, wilayah" },
-        { kanji: "典型的", furigana: "てんけいてき", arti: "tipikal" },
-        { kanji: "飯", furigana: "はん／めし", arti: "nasi" },
-        { kanji: "味噌汁", furigana: "みそしる", arti: "sup miso" },
-        { kanji: "焼き魚", furigana: "やきざかな", arti: "ikan bakar" },
-        { kanji: "漬け物", furigana: "つけもの", arti: "acar Jepang" },
-        { kanji: "毎日", furigana: "まいにち", arti: "setiap hari" },
-        { kanji: "少ない", furigana: "すくない", arti: "sedikit" },
-        { kanji: "逆", furigana: "ぎゃく", arti: "sebaliknya" },
-        { kanji: "西洋風", furigana: "せいようふう", arti: "bergaya Barat" },
-        { kanji: "増える", furigana: "ふえる", arti: "bertambah" },
-        { kanji: "簡単", furigana: "かんたん", arti: "sederhana" },
-        { kanji: "済ませる", furigana: "すませる", arti: "menyelesaikan, mencukupkan" },
-        { kanji: "味噌", furigana: "みそ", arti: "pasta kedelai fermentasi" },
-        { kanji: "溶かす", furigana: "とかす", arti: "melarutkan" },
-        { kanji: "豆腐", furigana: "とうふ", arti: "tahu" },
-        { kanji: "具", furigana: "ぐ", arti: "isi, bahan" },
-        { kanji: "椀", furigana: "わん", arti: "mangkuk" },
-        { kanji: "持つ", furigana: "もつ", arti: "memegang" },
-        { kanji: "口", furigana: "くち", arti: "mulut" },
-        { kanji: "沈む", furigana: "しずむ", arti: "mengendap, tenggelam" },
-        { kanji: "箸", furigana: "はし", arti: "sumpit" },
-        { kanji: "軽い", furigana: "かるい", arti: "ringan" },
-        { kanji: "混ぜる", furigana: "まぜる", arti: "mencampur" },
-        { kanji: "外国", furigana: "がいこく", arti: "luar negeri" },
-        { kanji: "病気", furigana: "びょうき", arti: "penyakit" },
-        { kanji: "先行", furigana: "せんこう", arti: "mendahului" },
-        { kanji: "前提", furigana: "ぜんてい", arti: "prasyarat" },
-        { kanji: "洗浄", furigana: "せんじょう", arti: "pencucian" },
-        { kanji: "殺菌", furigana: "さっきん", arti: "sterilisasi" },
-        { kanji: "行う", furigana: "おこなう", arti: "melakukan" },
-        { kanji: "古い", furigana: "ふるい", arti: "lama" },
-        { kanji: "安全", furigana: "あんぜん", arti: "aman" },
-        { kanji: "出し汁", furigana: "だしじる", arti: "kaldu" },
-        { kanji: "卵かけご飯", furigana: "たまごかけごはん", arti: "nasi dengan telur mentah" },
-        { kanji: "物", furigana: "もの", arti: "benda, barang" },
-        { kanji: "朝", furigana: "あさ", arti: "pagi" },
-        { kanji: "外国", furigana: "がいこく", arti: "luar negeri, negara asing" },
-        { kanji: "店舗", furigana: "てんぽ", arti: "toko/cabang (konsep umum dari chain store)" },
-        { kanji: "定番", furigana: "ていばん", arti: "menu standar, menu populer" },
-        { kanji: "地域", furigana: "ちいき", arti: "daerah, wilayah" },
-        { kanji: "見つける", furigana: "みつける", arti: "menemukan" },
-        { kanji: "食券", furigana: "しょっけん", arti: "tiket makanan" },
-        { kanji: "券売機", furigana: "けんばいき", arti: "mesin penjual tiket" },
-        { kanji: "会話", furigana: "かいわ", arti: "percakapan" },
-        { kanji: "社員食堂", furigana: "しゃいんしょくどう", arti: "kantin karyawan" },
-        { kanji: "採用", furigana: "さいよう", arti: "menerapkan, mengadopsi" },
-        { kanji: "注文", furigana: "ちゅうもん", arti: "memesan" },
-        { kanji: "自動券売機", furigana: "じどうけんばいき", arti: "mesin tiket otomatis" },
-        { kanji: "利用", furigana: "りよう", arti: "menggunakan" },
-        { kanji: "手順", furigana: "てじゅん", arti: "prosedur" },
-        { kanji: "金", furigana: "かね", arti: "uang" },
-        { kanji: "押す", furigana: "おす", arti: "menekan" },
-        { kanji: "出る", furigana: "でる", arti: "keluar" },
-        { kanji: "取る", furigana: "とる", arti: "mengambil" },
-        { kanji: "式", furigana: "しき", arti: "tipe, model" },
-        { kanji: "方法", furigana: "ほうほう", arti: "metode" },
-        { kanji: "商品", furigana: "しょうひん", arti: "produk" },
-        { kanji: "受け取る", furigana: "うけとる", arti: "menerima" },
-        { kanji: "席", furigana: "せき", arti: "tempat duduk" },
-        { kanji: "座る", furigana: "すわる", arti: "duduk" },
-        { kanji: "店員", furigana: "てんいん", arti: "pegawai toko" },
-        { kanji: "渡す", furigana: "わたす", arti: "menyerahkan" },
-        { kanji: "運ぶ", furigana: "はこぶ", arti: "membawa" },
-        { kanji: "万円札", furigana: "まんえんさつ", arti: "uang kertas 10.000 yen" },
-        { kanji: "千円札", furigana: "せんえんさつ", arti: "uang kertas 1.000 yen" },
-        { kanji: "札", furigana: "さつ", arti: "uang kertas" },
-        { kanji: "最近", furigana: "さいきん", arti: "akhir-akhir ini" },
-        { kanji: "電子決済", furigana: "でんしけっさい", arti: "pembayaran elektronik" },
-        { kanji: "居酒屋", furigana: "いざかや", arti: "izakaya, pub/restoran Jepang" },
-        { kanji: "豊富", furigana: "ほうふ", arti: "berlimpah, beragam" },
-        { kanji: "肉", furigana: "にく", arti: "daging" },
-        { kanji: "自由", furigana: "じゆう", arti: "bebas" },
-        { kanji: "気軽", furigana: "きがる", arti: "santai, tanpa beban" },
-        { kanji: "利用", furigana: "りよう", arti: "menggunakan, memanfaatkan" },
-        { kanji: "手順", furigana: "てじゅん", arti: "prosedur, langkah" },
-        { kanji: "入り口", furigana: "いりぐち", arti: "pintu masuk" },
-        { kanji: "人数", furigana: "にんずう", arti: "jumlah orang" },
-        { kanji: "案内", furigana: "あんない", arti: "panduan, mengantar" },
-        { kanji: "持つ", furigana: "もつ", arti: "membawa" },
-        { kanji: "飲み物", furigana: "のみもの", arti: "minuman" },
-        { kanji: "必ず", furigana: "かならず", arti: "pasti, selalu" },
-        { kanji: "杯", furigana: "はい", arti: "satuan hitung gelas/cangkir" },
-        { kanji: "頼む", furigana: "たのむ", arti: "memesan, meminta" },
-        { kanji: "枝豆", furigana: "えだまめ", arti: "edamame" },
-        { kanji: "待つ", furigana: "まつ", arti: "menunggu" },
-        { kanji: "間", furigana: "あいだ", arti: "selama, ketika" },
-        { kanji: "見る", furigana: "みる", arti: "melihat" },
-        { kanji: "決める", furigana: "きめる", arti: "memutuskan" },
-        { kanji: "追加", furigana: "ついか", arti: "tambahan" },
-        { kanji: "呼ぶ", furigana: "よぶ", arti: "memanggil" },
-        { kanji: "終わる", furigana: "おわる", arti: "selesai" },
-        { kanji: "会計", furigana: "かいけい", arti: "pembayaran, kasir" },
-        { kanji: "伝票", furigana: "でんぴょう", arti: "bon, nota" },
-        { kanji: "支払い", furigana: "しはらい", arti: "pembayaran" },
-        { kanji: "唐揚げ", furigana: "からあげ", arti: "gorengan ala Jepang (umumnya ayam goreng)" },
-        { kanji: "食材", furigana: "しょくざい", arti: "bahan makanan" },
-        { kanji: "片栗粉", furigana: "かたくりこ", arti: "tepung kentang/tepung pati" },
-        { kanji: "薄く", furigana: "うすく", arti: "tipis-tipis" },
-        { kanji: "以外", furigana: "いがい", arti: "selain" },
-        { kanji: "名", furigana: "めい", arti: "nama" },
-        { kanji: "鶏", furigana: "とり", arti: "ayam" },
-        { kanji: "骨", furigana: "ほね", arti: "tulang" },
-        { kanji: "味付け", furigana: "あじつけ", arti: "memberi bumbu" },
-        { kanji: "汁", furigana: "しる", arti: "cairan, sari" },
-        { kanji: "代表的", furigana: "だいひょうてき", arti: "representatif, khas" },
-        { kanji: "塩辛", furigana: "しおから", arti: "seafood fermentasi asin" },
-        { kanji: "冷奴", furigana: "ひややっこ", arti: "tahu dingin" },
-        { kanji: "冷やし", furigana: "ひやし", arti: "dingin" },
-        { kanji: "新香", furigana: "しんこう", arti: "acar (お新香)" },
-        { kanji: "酒", furigana: "さけ", arti: "alkohol" },
-        { kanji: "大手", furigana: "おおて", arti: "perusahaan besar" },
-        { kanji: "造る", furigana: "つくる", arti: "memproduksi" },
-        { kanji: "居酒屋", furigana: "いざかや", arti: "izakaya" },
-        { kanji: "宴会", furigana: "えんかい", arti: "jamuan, pesta" },
-        { kanji: "最初", furigana: "さいしょ", arti: "pertama" },
-        { kanji: "乾杯", furigana: "かんぱい", arti: "bersulang" },
-        { kanji: "全員", furigana: "ぜんいん", arti: "semua orang" },
-        { kanji: "場合", furigana: "ばあい", arti: "situasi, kasus" },
-        { kanji: "飲み始め", furigana: "のみはじめ", arti: "awal minum" },
-        { kanji: "役割", furigana: "やくわり", arti: "peran" },
-        { kanji: "飲食店", furigana: "いんしょくてん", arti: "restoran" },
-        { kanji: "瓶", furigana: "びん", arti: "botol" },
-        { kanji: "瓶ビール", furigana: "びんビール", arti: "bir botol" },
-        { kanji: "生ビール", furigana: "なまビール", arti: "bir draft" },
-        { kanji: "注ぐ", furigana: "そそぐ", arti: "menuangkan" },
-        { kanji: "何人", furigana: "なんにん", arti: "berapa orang" },
-        { kanji: "大", furigana: "だい", arti: "besar" },
-        { kanji: "中", furigana: "ちゅう", arti: "sedang" },
-        { kanji: "小", furigana: "しょう", arti: "kecil" },
-        { kanji: "量", furigana: "りょう", arti: "jumlah, volume" },
-        { kanji: "意味", furigana: "いみ", arti: "arti" },
-        { kanji: "全国", furigana: "ぜんこく", arti: "seluruh negeri" },
-        { kanji: "地ビール", furigana: "じビール", arti: "bir lokal" },
-        { kanji: "旅行", furigana: "りょこう", arti: "perjalanan" },
-        { kanji: "楽しい", furigana: "たのしい", arti: "menyenangkan" },
-        { kanji: "飲食店", furigana: "いんしょくてん", arti: "restoran, tempat makan" },
-        { kanji: "出す", furigana: "だす", arti: "mengeluarkan, menyajikan" },
-        { kanji: "小さい", furigana: "ちいさい", arti: "kecil" },
-        { kanji: "熱い", furigana: "あつい", arti: "panas" },
-        { kanji: "湿らせる", furigana: "しめらせる", arti: "membasahi" },
-        { kanji: "客", furigana: "きゃく", arti: "pelanggan" },
-        { kanji: "拭く", furigana: "ふく", arti: "mengelap" },
-        { kanji: "無料", furigana: "むりょう", arti: "gratis" },
-        { kanji: "水道水", furigana: "すいどうすい", arti: "air keran" },
-        { kanji: "飲める", furigana: "のめる", arti: "dapat diminum" },
-        { kanji: "冷や", furigana: "ひや", arti: "air dingin (お冷や)" },
-        { kanji: "願う", furigana: "ねがう", arti: "memohon, meminta" },
-        { kanji: "想定", furigana: "そうてい", arti: "asumsi, perkiraan" },
-        { kanji: "頼む", furigana: "たのむ", arti: "meminta, memesan" },
-        { kanji: "炭酸水", furigana: "たんさんすい", arti: "air berkarbonasi" },
-        { kanji: "可能性", furigana: "かのうせい", arti: "kemungkinan" },
-        { kanji: "有料", furigana: "ゆうりょう", arti: "berbayar" },
-        { kanji: "住宅", furigana: "じゅうたく", arti: "perumahan, tempat tinggal" },
-        { kanji: "形", furigana: "かたち", arti: "bentuk" },
-        { kanji: "鉄筋", furigana: "てっきん", arti: "rangka baja" },
-        { kanji: "造る", furigana: "つくる", arti: "membangun, membuat" },
-        { kanji: "大きめ", furigana: "おおきめ", arti: "agak besar" },
-        { kanji: "集合住宅", furigana: "しゅうごうじゅうたく", arti: "hunian apartemen/kompleks" },
-        { kanji: "部屋", furigana: "へや", arti: "kamar" },
-        { kanji: "住む", furigana: "すむ", arti: "tinggal" },
-        { kanji: "家賃", furigana: "やちん", arti: "uang sewa" },
-        { kanji: "払う", furigana: "はらう", arti: "membayar" },
-        { kanji: "借りる", furigana: "かりる", arti: "menyewa" },
-        { kanji: "近年", furigana: "きんねん", arti: "beberapa tahun terakhir" },
-        { kanji: "都市部", furigana: "としぶ", arti: "daerah perkotaan" },
-        { kanji: "建てる", furigana: "たてる", arti: "membangun" },
-        { kanji: "土地", furigana: "とち", arti: "tanah" },
-        { kanji: "有効利用", furigana: "ゆうこうりよう", arti: "pemanfaatan efektif" },
-        { kanji: "高層建築", furigana: "こうそうけんちく", arti: "bangunan bertingkat tinggi" },
-        { kanji: "階建て", furigana: "かいだて", arti: "bertingkat" },
-        { kanji: "部屋数", furigana: "へやすう", arti: "jumlah kamar" },
-        { kanji: "建物", furigana: "たてもの", arti: "bangunan" },
-        { kanji: "木造", furigana: "もくぞう", arti: "konstruksi kayu" },
-        { kanji: "印象", furigana: "いんしょう", arti: "kesan" },
-        { kanji: "法律的", furigana: "ほうりつてき", arti: "secara hukum" },
-        { kanji: "明確", furigana: "めいかく", arti: "jelas" },
-        { kanji: "区別", furigana: "くべつ", arti: "perbedaan, klasifikasi" },
-        { kanji: "一戸建て", furigana: "いっこだて", arti: "rumah tapak/rumah sendiri" },
-        { kanji: "郊外", furigana: "こうがい", arti: "pinggiran kota" },
-        { kanji: "地方", furigana: "ちほう", arti: "daerah, wilayah" },
-        { kanji: "購入", furigana: "こうにゅう", arti: "pembelian" },
-        { kanji: "若い", furigana: "わかい", arti: "muda" },
-        { kanji: "都心", furigana: "としん", arti: "pusat kota" },
-        { kanji: "結婚", furigana: "けっこん", arti: "menikah" },
-        { kanji: "場所", furigana: "ばしょ", arti: "tempat" },
-        { kanji: "土地", furigana: "とち", arti: "lahan" },
-        { kanji: "一軒", furigana: "いっけん", arti: "satu rumah" },
-        { kanji: "複数", furigana: "ふくすう", arti: "beberapa, lebih dari satu" },
-        { kanji: "賃貸住宅", furigana: "ちんたいじゅうたく", arti: "rumah sewa" },
-        { kanji: "個室", furigana: "こしつ", arti: "kamar pribadi" },
-        { kanji: "共用", furigana: "きょうよう", arti: "penggunaan bersama" },
-        { kanji: "入居者", furigana: "にゅうきょしゃ", arti: "penghuni" },
-        { kanji: "共同", furigana: "きょうどう", arti: "bersama-sama" },
-        { kanji: "交流", furigana: "こうりゅう", arti: "interaksi" },
-        { kanji: "学生", furigana: "がくせい", arti: "mahasiswa, pelajar" },
-        { kanji: "寮", furigana: "りょう", arti: "asrama" },
-        { kanji: "会社", furigana: "かいしゃ", arti: "perusahaan" },
-        { kanji: "社員", furigana: "しゃいん", arti: "karyawan" },
-        { kanji: "社員寮", furigana: "しゃいんりょう", arti: "asrama karyawan" },
-        { kanji: "学生寮", furigana: "がくせいりょう", arti: "asrama mahasiswa" },
-        { kanji: "風呂", furigana: "ふろ", arti: "kamar mandi/bak mandi" },
-        { kanji: "割り当てる", furigana: "わりあてる", arti: "mengalokasikan" },
-        { kanji: "食事", furigana: "しょくじ", arti: "makanan" },
-        { kanji: "食堂", furigana: "しょくどう", arti: "kantin" },
-        { kanji: "制服", furigana: "せいふく", arti: "seragam" },
-        { kanji: "職場", furigana: "しょくば", arti: "tempat kerja" },
-        { kanji: "更衣室", furigana: "こういしつ", arti: "ruang ganti" },
-        { kanji: "着替える", furigana: "きがえる", arti: "berganti pakaian" },
-        { kanji: "私服", furigana: "しふく", arti: "pakaian pribadi" },
-        { kanji: "取り入れる", furigana: "とりいれる", arti: "menerapkan, mengadopsi" },
-        { kanji: "工場", furigana: "こうじょう", arti: "pabrik" },
-        { kanji: "働く", furigana: "はたらく", arti: "bekerja" },
-        { kanji: "際", furigana: "さい", arti: "ketika, pada saat" },
-        { kanji: "安全", furigana: "あんぜん", arti: "keselamatan" },
-        { kanji: "確保", furigana: "かくほ", arti: "memastikan, mengamankan" },
-        { kanji: "作業服", furigana: "さぎょうふく", arti: "pakaian kerja" },
-        { kanji: "支給", furigana: "しきゅう", arti: "pemberian, penyediaan" },
-        { kanji: "労働者", furigana: "ろうどうしゃ", arti: "pekerja" },
-        { kanji: "減らす", furigana: "へらす", arti: "mengurangi" },
-        { kanji: "会社外", furigana: "かいしゃがい", arti: "di luar perusahaan" },
-        { kanji: "区別", furigana: "くべつ", arti: "membedakan" },
-        { kanji: "会社内", furigana: "かいしゃない", arti: "di dalam perusahaan" },
-        { kanji: "一体感", furigana: "いったいかん", arti: "rasa kebersamaan" },
-        { kanji: "高める", furigana: "たかめる", arti: "meningkatkan" },
-        { kanji: "効果", furigana: "こうか", arti: "efek" },
-        { kanji: "期待", furigana: "きたい", arti: "harapan" },
-        { kanji: "業種", furigana: "ぎょうしゅ", arti: "jenis industri" },
-        { kanji: "一定", furigana: "いってい", arti: "terterntu, tetap" },
-        { kanji: "服装", furigana: "ふくそう", arti: "cara berpakaian" },
-        { kanji: "例える", furigana: "たとえる", arti: "misalnya" },
-        { kanji: "金融系", furigana: "きんゆうけい", arti: "bidang keuangan" },
-        { kanji: "紺", furigana: "こん", arti: "warna biru tua/navy" },
-        { kanji: "濃い", furigana: "こい", arti: "pekat, gelap" },
-        { kanji: "黒い", furigana: "くろい", arti: "hitam" },
-        { kanji: "革靴", furigana: "かわぐつ", arti: "sepatu kulit" },
-        { kanji: "暗黙", furigana: "あんもく", arti: "tersirat" },
-        { kanji: "了解", furigana: "りょうかい", arti: "pemahaman, kesepakatan" },
-        { kanji: "日本社会", furigana: "にほんしゃかい", arti: "masyarakat Jepang" },
-        { kanji: "個性的", furigana: "こせいてき", arti: "individualistik, unik" },
-        { kanji: "求める", furigana: "もとめる", arti: "menuntut, mengharapkan" },
-        { kanji: "茶", furigana: "ちゃ", arti: "teh" },
-        { kanji: "緑茶", furigana: "りょくちゃ", arti: "teh hijau" },
-        { kanji: "一般", furigana: "いっぱん", arti: "umum" },
-        { kanji: "急須", furigana: "きゅうす", arti: "teko teh Jepang" },
-        { kanji: "紅茶", furigana: "こうちゃ", arti: "teh hitam" },
-        { kanji: "海外", furigana: "かいがい", arti: "luar negeri" },
-        { kanji: "入れる", furigana: "いれる", arti: "memasukkan, menyeduh" },
-        { kanji: "麦茶", furigana: "むぎちゃ", arti: "teh barley" },
-        { kanji: "大麦", furigana: "おおむぎ", arti: "jelai/barley" },
-        { kanji: "店", furigana: "みせ", arti: "toko/restoran" },
-        { kanji: "抹茶", furigana: "まっちゃ", arti: "matcha" },
-        { kanji: "葉", furigana: "は", arti: "daun" },
-        { kanji: "粉", furigana: "こな", arti: "bubuk" },
-        { kanji: "茶道", furigana: "さどう", arti: "upacara minum teh" },
-        { kanji: "菓子", furigana: "かし", arti: "makanan manis, kue" },
-        { kanji: "材料", furigana: "ざいりょう", arti: "bahan" },
-        { kanji: "原産", furigana: "げんさん", arti: "berasal dari" },
-        { kanji: "半分", furigana: "はんぶん", arti: "setengah" },
-        { kanji: "茶色", furigana: "ちゃいろ", arti: "warna cokelat" },
-        { kanji: "渋み", furigana: "しぶみ", arti: "rasa sepat" },
-        { kanji: "何種類", furigana: "なんしゅるい", arti: "beberapa jenis" },
-        { kanji: "砂糖", furigana: "さとう", arti: "gula" },
-        { kanji: "甘い", furigana: "あまい", arti: "manis" },
-        { kanji: "合う", furigana: "あう", arti: "cocok" },
-        { kanji: "送信元", furigana: "そうしんもと", arti: "pengirim" },
-        { kanji: "画像", furigana: "がぞう", arti: "gambar" },
-        { kanji: "変換", furigana: "へんかん", arti: "konversi" },
-        { kanji: "電話回線", furigana: "でんわかいせん", arti: "saluran telepon" },
-        { kanji: "通じる", furigana: "つうじる", arti: "melalui" },
-        { kanji: "送る", furigana: "おくる", arti: "mengirim" },
-        { kanji: "送信先", furigana: "そうしんさき", arti: "penerima" },
-        { kanji: "紙", furigana: "かみ", arti: "kertas" },
-        { kanji: "印刷", furigana: "いんさつ", arti: "mencetak" },
-        { kanji: "機械", furigana: "きかい", arti: "mesin" },
-        { kanji: "年代", furigana: "ねんだい", arti: "dekade" },
-        { kanji: "普及", furigana: "ふきゅう", arti: "penyebaran" },
-        { kanji: "現役", furigana: "げんえき", arti: "masih aktif digunakan" },
-        { kanji: "関係", furigana: "かんけい", arti: "hubungan, terkait" },
-        { kanji: "通知", furigana: "つうち", arti: "pemberitahuan" },
-        { kanji: "連絡", furigana: "れんらく", arti: "kontak, komunikasi" },
-        { kanji: "今", furigana: "いま", arti: "sekarang" },
-        { kanji: "手書き", furigana: "てがき", arti: "tulisan tangan" },
-        { kanji: "書類", furigana: "しょるい", arti: "dokumen" },
-        { kanji: "信用", furigana: "しんよう", arti: "kepercayaan" },
-        { kanji: "挙げる", furigana: "あげる", arti: "mengemukakan" },
-        { kanji: "手続き", furigana: "てつづき", arti: "prosedur" },
-        { kanji: "認める", furigana: "みとめる", arti: "mengizinkan, mengakui" },
-        { kanji: "受け付ける", furigana: "うけつける", arti: "menerima, memproses" },
-        { kanji: "朝礼", furigana: "ちょうれい", arti: "apel pagi, briefing pagi" },
-        { kanji: "企業", furigana: "きぎょう", arti: "perusahaan" },
-        { kanji: "始まる", furigana: "はじまる", arti: "dimulai" },
-        { kanji: "従業員", furigana: "じゅうぎょういん", arti: "karyawan" },
-        { kanji: "集まる", furigana: "あつまる", arti: "berkumpul" },
-        { kanji: "連絡", furigana: "れんらく", arti: "pemberitahuan, komunikasi" },
-        { kanji: "行う", furigana: "おこなう", arti: "melaksanakan" },
-        { kanji: "目的", furigana: "もくてき", arti: "tujuan" },
-        { kanji: "流れ", furigana: "ながれ", arti: "alur" },
-        { kanji: "特別", furigana: "とくべつ", arti: "khusus" },
-        { kanji: "注意事項", furigana: "ちゅういじこう", arti: "hal-hal yang perlu diperhatikan" },
-        { kanji: "顔", furigana: "かお", arti: "wajah" },
-        { kanji: "合わせる", furigana: "あわせる", arti: "saling bertemu" },
-        { kanji: "切り替える", furigana: "きりかえる", arti: "mengalihkan, mengganti mode" },
-        { kanji: "体操", furigana: "たいそう", arti: "senam" },
-        { kanji: "取り入れる", furigana: "とりいれる", arti: "menerapkan" },
-        { kanji: "番組", furigana: "ばんぐみ", arti: "program acara" },
-        { kanji: "子ども", furigana: "こども", arti: "anak-anak" },
-        { kanji: "身近", furigana: "みぢか", arti: "dekat dengan kehidupan sehari-hari" },
-        { kanji: "存在", furigana: "そんざい", arti: "keberadaan" },
-        { kanji: "労働", furigana: "ろうどう", arti: "kerja, tenaga kerja" },
-        { kanji: "体", furigana: "からだ", arti: "tubuh" },
-        { kanji: "慣れさせる", furigana: "なれさせる", arti: "membiasakan" },
-        { kanji: "意図", furigana: "いと", arti: "maksud, tujuan" },
-        { kanji: "公営", furigana: "こうえい", arti: "milik/pengelolaan pemerintah" },
-        { kanji: "屋外", furigana: "おくがい", arti: "luar ruangan" },
-        { kanji: "時期", furigana: "じき", arti: "periode, musim" },
-        { kanji: "市", furigana: "し", arti: "kota" },
-        { kanji: "区", furigana: "く", arti: "distrik" },
-        { kanji: "数百円", furigana: "すうひゃくえん", arti: "beberapa ratus yen" },
-        { kanji: "利用料", furigana: "りようりょう", arti: "biaya penggunaan" },
-        { kanji: "自治体", furigana: "じちたい", arti: "pemerintah daerah" },
-        { kanji: "在住", furigana: "ざいじゅう", arti: "tinggal (domisili)" },
-        { kanji: "在勤", furigana: "ざいきん", arti: "bekerja di wilayah tersebut" },
-        { kanji: "開放", furigana: "かいほう", arti: "dibuka untuk umum" },
-        { kanji: "決まる", furigana: "きまる", arti: "ditentukan" },
-        { kanji: "思う", furigana: "おもう", arti: "berpikir" },
-        { kanji: "調べる", furigana: "しらべる", arti: "mencari, memeriksa" },
-        { kanji: "必ず", furigana: "かならず", arti: "wajib" },
-        { kanji: "日焼け止め", furigana: "ひやけどめ", arti: "tabir surya" },
-        { kanji: "禁止", furigana: "きんし", arti: "dilarang" },
-        { kanji: "注意", furigana: "ちゅうい", arti: "perhatian" },
-        { kanji: "必要", furigana: "ひつよう", arti: "perlu" },
-        { kanji: "映画", furigana: "えいが", arti: "film" },
-        { kanji: "見る", furigana: "みる", arti: "menonton" },
-        { kanji: "映画館", furigana: "えいがかん", arti: "bioskop" },
-        { kanji: "方法", furigana: "ほうほう", arti: "cara" },
-        { kanji: "数年", furigana: "すうねん", arti: "beberapa tahun" },
-        { kanji: "大きく", furigana: "おおきく", arti: "secara besar" },
-        { kanji: "変わる", furigana: "かわる", arti: "berubah" },
-        { kanji: "以前", furigana: "いぜん", arti: "dahulu" },
-        { kanji: "上映", furigana: "じょうえい", arti: "pemutaran film" },
-        { kanji: "決める", furigana: "きめる", arti: "menentukan" },
-        { kanji: "一定", furigana: "いってい", arti: "tetap" },
-        { kanji: "期間", furigana: "きかん", arti: "periode" },
-        { kanji: "繰り返し", furigana: "くりかえし", arti: "berulang-ulang" },
-        { kanji: "客", furigana: "きゃく", arti: "penonton" },
-        { kanji: "都合", furigana: "つごう", arti: "kecocokan jadwal" },
-        { kanji: "回", furigana: "かい", arti: "sesi, putaran" },
-        { kanji: "座席", furigana: "ざせき", arti: "kursi" },
-        { kanji: "自由席", furigana: "じゆうせき", arti: "kursi bebas" },
-        { kanji: "形式", furigana: "けいしき", arti: "bentuk, format" },
-        { kanji: "主流", furigana: "しゅりゅう", arti: "arus utama" },
-        { kanji: "複数", furigana: "ふくすう", arti: "beberapa" },
-        { kanji: "部屋", furigana: "へや", arti: "ruangan" },
-        { kanji: "割り振る", furigana: "わりふる", arti: "mengalokasikan" },
-        { kanji: "公開", furigana: "こうかい", arti: "rilis" },
-        { kanji: "指定席", furigana: "していせき", arti: "kursi bernomor" },
-        { kanji: "料金", furigana: "りょうきん", arti: "biaya" },
-        { kanji: "大人", furigana: "おとな", arti: "orang dewasa" },
-        { kanji: "円", furigana: "えん", arti: "yen" },
-        { kanji: "別料金", furigana: "べつりょうきん", arti: "biaya tambahan" },
-        { kanji: "映画の日", furigana: "えいがのひ", arti: "Hari Film" },
-        { kanji: "割引", furigana: "わりびき", arti: "diskon" },
-        { kanji: "会員", furigana: "かいいん", arti: "anggota" },
-        { kanji: "当日", furigana: "とうじつ", arti: "hari itu" },
-        { kanji: "説明", furigana: "せつめい", arti: "penjelasan" }
-    ];
-
-    // PEMBARUAN LOGIKA PENCARIAN (Smart Kanji Matching):
-    // Menghapus okurigana umum (seperti 'る', 'い', dll) dari pencarian
-    // agar saat teks memiliki bentuk konjugasi (seperti 曲げ), kanji intinya tetap tertangkap.
     vocab.forEach(v => {
         v.searchKey = v.kanji.replace(/[るいくむすつぬぶうな]$/, '');
     });
 
-    // Urutkan dari panjang searchKey terbesar agar tidak terjadi bentrok pemotongan
     vocab.sort((a, b) => b.searchKey.length - a.searchKey.length);
 
-    // Ambil string pencarian dan buatkan list untuk RegExp
     const searchKeys = vocab.map(v => v.searchKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const regex = new RegExp(`(${searchKeys.join('|')})`, 'g');
 
     let unreadTexts = [...texts];
     let totalTexts = texts.length;
+    
+    let clickedKanjisInText = [];
+    let currentFlashcardIndex = 0;
 
-    // Fungsi Render Teks Acak
     function loadRandomText() {
         if (unreadTexts.length === 0) {
             alert("Luar biasa! Anda telah membaca semua teks.");
-            unreadTexts = [...texts]; // Reset
+            unreadTexts = [...texts];
         }
 
+        clickedKanjisInText = [];
+        
         let randomIndex = Math.floor(Math.random() * unreadTexts.length);
         let selectedText = unreadTexts.splice(randomIndex, 1)[0];
 
-        // Memasukkan span blok abu-abu (hanya pada bagian kanjinya yang cocok)
         let renderedText = selectedText.replace(regex, (match) => {
-            // Mencari objek asli berdasarkan stem/searchKey-nya
             let item = vocab.find(v => v.searchKey === match);
             if(item) {
                 return `<span class="kanji-block" data-word="${item.kanji}">${match}</span>`;
@@ -1175,7 +246,6 @@
         document.getElementById('progress').innerText = `Progres Teks: ${totalTexts - unreadTexts.length} / ${totalTexts}`;
     }
 
-    // Fungsi Klik Blok Kanji
     document.getElementById('text-container').addEventListener('click', function(e) {
         if (e.target && e.target.classList.contains('kanji-block')) {
             let word = e.target.getAttribute('data-word');
@@ -1184,13 +254,15 @@
             if (item) {
                 if (!e.target.classList.contains('clicked')) {
                     e.target.classList.add('clicked');
+                    
+                    if(!clickedKanjisInText.some(k => k.kanji === item.kanji)) {
+                        clickedKanjisInText.push(item);
+                    }
 
-                    // --- BAGIAN INTEGRASI SPREADSHEET ---
                     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyye5wEFcWjwKSouXFv-lvbx93LPbbA5HaqumW2sVHa2jeRqR3SlYdJqsSxMUFa2_qtoQ/exec";
-
                     fetch(WEB_APP_URL, {
                         method: 'POST',
-                        mode: 'no-cors', // Penting agar tidak terkena error CORS
+                        mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             kanji: item.kanji,
@@ -1198,7 +270,6 @@
                             arti: item.arti
                         })
                     }).then(() => console.log("Data terkirim ke Spreadsheet!"));
-                    // -----------------------------------
                 }
 
                 document.getElementById('modal-kanji').innerText = item.kanji;
@@ -1214,9 +285,62 @@
     document.getElementById('close-btn').addEventListener('click', function() {
         document.getElementById('kanji-modal').style.display = 'none';
     });
-    document.getElementById('next-btn').addEventListener('click', loadRandomText);
+    
+    document.getElementById('next-btn').addEventListener('click', function() {
+        if (clickedKanjisInText.length > 0) {
+            startFlashcards();
+        } else {
+            loadRandomText();
+        }
+    });
 
-    // LOGIKA KANVAS
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function startFlashcards() {
+        shuffleArray(clickedKanjisInText);
+        currentFlashcardIndex = 0;
+        updateFlashcardUI();
+        document.getElementById('flashcard-modal').style.display = 'block';
+    }
+
+    function updateFlashcardUI() {
+        const card = document.getElementById('fc-card');
+        card.classList.remove('is-flipped');
+        
+        const item = clickedKanjisInText[currentFlashcardIndex];
+        document.getElementById('fc-kanji').innerText = item.kanji;
+        document.getElementById('fc-furigana').innerText = item.furigana;
+        document.getElementById('fc-arti').innerText = item.arti;
+    }
+
+    document.getElementById('fc-container').addEventListener('click', function() {
+        document.getElementById('fc-card').classList.toggle('is-flipped');
+    });
+
+    document.getElementById('fc-next-btn').addEventListener('click', function() {
+        currentFlashcardIndex++;
+        
+        if (currentFlashcardIndex >= clickedKanjisInText.length) {
+            shuffleArray(clickedKanjisInText);
+            currentFlashcardIndex = 0;
+        }
+        
+        document.getElementById('fc-card').classList.remove('is-flipped');
+        setTimeout(() => {
+            updateFlashcardUI();
+        }, 150);
+    });
+
+    document.getElementById('fc-finish-btn').addEventListener('click', function() {
+        document.getElementById('flashcard-modal').style.display = 'none';
+        loadRandomText();
+    });
+
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 300; canvas.height = 150;
@@ -1232,7 +356,16 @@
         };
     }
 
-    function startDraw(e) { e.preventDefault(); isDrawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#2c3e50'; }
+    function startDraw(e) { 
+        e.preventDefault(); 
+        isDrawing = true; 
+        const pos = getPos(e); 
+        ctx.beginPath(); 
+        ctx.moveTo(pos.x, pos.y); 
+        ctx.lineWidth = 4; 
+        ctx.lineCap = 'round'; 
+        ctx.strokeStyle = '#007BFF'; 
+    }
     function draw(e) { if (!isDrawing) return; e.preventDefault(); const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
     function endDraw() { isDrawing = false; ctx.closePath(); }
 
@@ -1247,7 +380,10 @@
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
     document.getElementById('clear-btn').addEventListener('click', clearCanvas);
 
-    loadRandomText();
+    // Load teks pertama kali setelah memastikan data vocab ter-load
+    if (typeof texts !== 'undefined' && typeof vocab !== 'undefined') {
+        loadRandomText();
+    }
 
 </script>
 </body>
