@@ -14,7 +14,6 @@
             --stroke-color: #007BFF;
         }
 
-        /* Dukungan Tema Gelap (Dark Mode) */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg-color: #121212;
@@ -177,7 +176,7 @@
 
 <div id="flashcard-modal" class="modal">
     <div class="modal-content">
-        <h3 style="margin-top:0;">Review Kanji Teks Ini</h3>
+        <h3 style="margin-top:0;" id="fc-title">Review Kanji</h3>
         <p style="font-size:14px; color:#888;">Ketuk kartu untuk membalik</p>
         
         <div class="flashcard-container" id="fc-container">
@@ -194,7 +193,7 @@
 
         <div class="fc-btn-group">
             <button id="fc-next-btn" class="btn btn-fc-next">Kartu Acak Selanjutnya</button>
-            <button id="fc-finish-btn" class="btn btn-next">Lanjut ke Teks Berikutnya</button>
+            <button id="fc-finish-btn" class="btn btn-next">Selesai</button>
         </div>
     </div>
 </div>
@@ -203,7 +202,6 @@
 <script src="data-vocab.js"></script>
 
 <script>
-    // Memastikan file eksternal berhasil dimuat
     if (typeof texts === 'undefined' || typeof vocab === 'undefined') {
         alert("Gagal memuat data! Pastikan file data-texts.js dan data-vocab.js berada di folder yang sama.");
     }
@@ -221,7 +219,11 @@
     let totalTexts = texts.length;
     
     let clickedKanjisInText = [];
+    let multiplesTriggered = new Set(); // Melacak kelipatan 10 yang sudah dimunculkan
+    
+    let activeFlashcardList = []; // Menyimpan list kanji yang sedang di-review
     let currentFlashcardIndex = 0;
+    let flashcardMode = 'end'; // 'mid' (di tengah teks) atau 'end' (di akhir teks)
 
     function loadRandomText() {
         if (unreadTexts.length === 0) {
@@ -229,7 +231,9 @@
             unreadTexts = [...texts];
         }
 
+        // Reset data untuk teks yang baru
         clickedKanjisInText = [];
+        multiplesTriggered.clear();
         
         let randomIndex = Math.floor(Math.random() * unreadTexts.length);
         let selectedText = unreadTexts.splice(randomIndex, 1)[0];
@@ -269,7 +273,7 @@
                             furigana: item.furigana,
                             arti: item.arti
                         })
-                    }).then(() => console.log("Data terkirim ke Spreadsheet!"));
+                    }).catch(err => console.log("Gagal mengirim ke spreadsheet", err));
                 }
 
                 document.getElementById('modal-kanji').innerText = item.kanji;
@@ -282,13 +286,22 @@
         }
     });
 
+    // Menutup Modal Kanvas & Mengecek Kelipatan 10
     document.getElementById('close-btn').addEventListener('click', function() {
         document.getElementById('kanji-modal').style.display = 'none';
+        
+        let count = clickedKanjisInText.length;
+        // Jika menyentuh kelipatan 10 (10, 20, 30, dst) dan belum pernah dipicu sebelumnya di kelipatan tsb
+        if (count > 0 && count % 10 === 0 && !multiplesTriggered.has(count)) {
+            multiplesTriggered.add(count);
+            startFlashcards('mid'); // Panggil mode tengah membaca
+        }
     });
     
+    // Tombol Selanjutnya (Selesai membaca 1 Teks)
     document.getElementById('next-btn').addEventListener('click', function() {
         if (clickedKanjisInText.length > 0) {
-            startFlashcards();
+            startFlashcards('end'); // Panggil mode review akhir dengan SEMUA kanji
         } else {
             loadRandomText();
         }
@@ -301,8 +314,22 @@
         }
     }
 
-    function startFlashcards() {
-        shuffleArray(clickedKanjisInText);
+    function startFlashcards(mode) {
+        flashcardMode = mode;
+        
+        if (mode === 'mid') {
+            // Mengambil 10 kanji terakhir yang baru saja di-klik
+            activeFlashcardList = clickedKanjisInText.slice(-10);
+            document.getElementById('fc-title').innerText = "Review 10 Kanji Terakhir";
+            document.getElementById('fc-finish-btn').innerText = "Lanjut Baca";
+        } else {
+            // Mengambil SEMUA kanji di teks ini
+            activeFlashcardList = [...clickedKanjisInText];
+            document.getElementById('fc-title').innerText = "Review Semua Kanji di Teks Ini";
+            document.getElementById('fc-finish-btn').innerText = "Lanjut ke Teks Berikutnya";
+        }
+
+        shuffleArray(activeFlashcardList);
         currentFlashcardIndex = 0;
         updateFlashcardUI();
         document.getElementById('flashcard-modal').style.display = 'block';
@@ -312,7 +339,7 @@
         const card = document.getElementById('fc-card');
         card.classList.remove('is-flipped');
         
-        const item = clickedKanjisInText[currentFlashcardIndex];
+        const item = activeFlashcardList[currentFlashcardIndex];
         document.getElementById('fc-kanji').innerText = item.kanji;
         document.getElementById('fc-furigana').innerText = item.furigana;
         document.getElementById('fc-arti').innerText = item.arti;
@@ -325,22 +352,30 @@
     document.getElementById('fc-next-btn').addEventListener('click', function() {
         currentFlashcardIndex++;
         
-        if (currentFlashcardIndex >= clickedKanjisInText.length) {
-            shuffleArray(clickedKanjisInText);
+        // Looping otomatis jika menekan next terus
+        if (currentFlashcardIndex >= activeFlashcardList.length) {
+            shuffleArray(activeFlashcardList);
             currentFlashcardIndex = 0;
         }
         
         document.getElementById('fc-card').classList.remove('is-flipped');
         setTimeout(() => {
             updateFlashcardUI();
-        }, 150);
+        }, 150); // Jeda kecil agar transisi flip tidak bertabrakan dengan pergantian teks
     });
 
+    // Menangani aksi tombol selesai pada Flashcard berdasarkan modenya
     document.getElementById('fc-finish-btn').addEventListener('click', function() {
         document.getElementById('flashcard-modal').style.display = 'none';
-        loadRandomText();
+        
+        if (flashcardMode === 'end') {
+            // Jika mode akhir, ganti teks
+            loadRandomText();
+        } 
+        // Jika mode 'mid', modal cukup ditutup (siswa kembali ke teks yang sama)
     });
 
+    // LOGIKA KANVAS MENGGAMBAR
     const canvas = document.getElementById('draw-canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 300; canvas.height = 150;
@@ -380,7 +415,6 @@
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
     document.getElementById('clear-btn').addEventListener('click', clearCanvas);
 
-    // Load teks pertama kali setelah memastikan data vocab ter-load
     if (typeof texts !== 'undefined' && typeof vocab !== 'undefined') {
         loadRandomText();
     }
